@@ -125,10 +125,9 @@ grep -n CUDA_HOME notebook/inference.py | head -1
 # ㉠ 시스템 IPv4 우선 (1회, sudo) — 모든 앱에 적용. 즉시 반영(재부팅 불필요)
 echo 'precedence ::ffff:0:0/96 100' | sudo tee -a /etc/gai.conf
 
-# ㉡ curl -4 직접 다운로드 — repo에 포함된 스크립트 사용
-#    third_party/sam-3d-objects/curl_download.sh : HF API로 파일목록 받아 curl -4 -C-(이어받기)
-#    + --speed-limit/--speed-time(느려지면 끊고 재시도)로 끊김 자가복구. 검증 ~7MB/s.
-bash curl_download.sh          # → checkpoints/hf-download/checkpoints/*.ckpt
+# ㉡ curl -4 직접 다운로드 — repo의 repro/curl_download.sh 사용 (third_party/sam-3d-objects/로 받음)
+#    HF API로 파일목록 받아 curl -4 -C-(이어받기) + --speed-limit/--speed-time(느려지면 끊고 재시도)로 자가복구(~7MB/s)
+bash ../../repro/curl_download.sh   # → checkpoints/hf-download/checkpoints/*.ckpt
 mv checkpoints/hf-download/checkpoints checkpoints/hf
 rm -rf checkpoints/hf-download
 ls checkpoints/hf              # pipeline.yaml 보이면 성공

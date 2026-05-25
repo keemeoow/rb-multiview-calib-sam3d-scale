@@ -1,0 +1,2 @@
+# Claude Code 런타임 lock (스케줄/루프 작업이 만드는 임시 파일)
+.claude/*.lock
