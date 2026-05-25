@@ -1,2 +1,7 @@
 # Claude Code 런타임 lock (스케줄/루프 작업이 만드는 임시 파일)
 .claude/*.lock
+
+# 외부 의존성: facebook의 별도 git repo (clone해서 쓰는 것 — repro/SETUP_GB10.md 1장 참고).
+# 메인 repo가 추적하면 SourceControl이 헷갈리고 잘못된 곳(facebook)으로 push되므로 무시한다.
+# 사용 버전은 repro/sam3d_git_commit.txt 에 기록됨.
+/third_party/sam-3d-objects/

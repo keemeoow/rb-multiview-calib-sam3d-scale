@@ -1,0 +1,11 @@
+{
+  // third_party/sam-3d-objects 는 facebook의 별도 git repo(push 권한 없음).
+  // Source Control 패널에서 숨겨서, 실수로 그 repo로 commit/push 되지 않게 한다.
+  "git.ignoredRepositories": [
+    "third_party/sam-3d-objects"
+  ],
+  // 중첩 repo를 submodule로 자동 감지/조작하지 않음 (메인 repo만 다룸)
+  "git.detectSubmodules": false,
+  // 파일이 하위 폴더에 있어도 항상 부모(메인) repo를 열어 작업
+  "git.openRepositoryInParentFolders": "always"
+}
