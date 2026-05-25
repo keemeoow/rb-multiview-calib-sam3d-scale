@@ -30,16 +30,9 @@ sudo ln -sfn "$PWD/data/sam3d_outputs/native_glb"  /workspace/output_native_glb
 sudo chown -R "$USER:$USER" data /workspace
 ```
 
-## 3. ❌ micromamba + default.yml (폐기) → ✅ conda 빈 환경
-
-> **이 경로는 쓰지 않는다.** 시도했던 두 가지가 모두 실패:
-> - micromamba x86-64 바이너리 → `Exec format error` (ARM에 안 맞음)
-> - `environments/default.yml`은 **x86-64 + CUDA 12.1로 고정** → aarch64에서 `Could not solve for environment specs`. (게다가 CUDA 12.1은 Blackwell sm_121 미지원)
->
-> → **conda로 빈 환경만 만들고, 의존성은 4번에서 직접 설치**한다. (micromamba 불필요)
+## 3. conda 빈 환경 생성 (의존성은 4번에서 직접 설치)
 
 ```bash
-# base는 기존 miniconda3
 conda create -n sam3d python=3.11 -y
 conda activate sam3d
 ```
