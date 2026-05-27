@@ -1,22 +1,28 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-calibrate_camera_to_robot.py
+Calib_Step6_calibrate_cam_to_robot.py
 
+<<실행 명령어>>
+python Calib_Step6_calibrate_cam_to_robot.py \
+    --input  pairs.json \
+    --output calibration_result.json
+
+---------------------------------------------------------------
 Standalone Eye-to-Hand calibration: estimate the rigid transform
 (4x4 homogeneous matrix) that maps points in the CAMERA frame to the
 ROBOT BASE frame, given a set of 3D point correspondences.
 
-Algorithm
----------
+<Algorithm>
+-----------
 Kabsch / Umeyama point-set alignment via SVD.
 For N >= 3 correspondences this gives the closed-form least-squares
 rotation R and translation t such that:
 
     robot_point ~= R @ camera_point + t
 
-Inputs
-------
+<Inputs>
+--------
 A single JSON file containing a list of correspondences. Each entry
 must provide a 3D point in the camera frame and the matching 3D point
 in the robot base frame, both in METERS:
@@ -44,14 +50,6 @@ Outputs
 -------
 A JSON file with the rotation matrix, translation, full 4x4 transform,
 and per-pair / aggregate error metrics in meters.
-
-Usage
------
-    python calibrate_camera_to_robot.py \
-        --input  pairs.json \
-        --output calibration_result.json
-
-Only depends on numpy.
 """
 
 import argparse

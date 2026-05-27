@@ -16,6 +16,7 @@ python Step2_capture_multi_cam.py \
 import os
 import json
 import time
+import socket
 import argparse
 from typing import Dict, Optional
 
@@ -37,6 +38,62 @@ from _aruco_cube import CubeConfig, ArucoCubeTarget
 def ensure_dir(p: str) -> str:
     os.makedirs(p, exist_ok=True)
     return p
+
+
+# ---------------------------------------------------------------- #
+# Robot pose helpers (talks to robot_pose_server.py over TCP/JSON)
+# ---------------------------------------------------------------- #
+
+def pose6_mm_deg_to_T(pose6) -> np.ndarray:
+    """[x_mm, y_mm, z_mm, rz_deg, ry_deg, rx_deg] -> 4x4 (meters).
+
+    Rotation convention: ZYX intrinsic (R = Rz @ Ry @ Rx). i611 Position 의
+    (rz, ry, rx) 표기에 맞춤. 캘리브 결과가 비정상이면 이 한 함수만 바꾸면 됨.
+    """
+    x, y, z = float(pose6[0]) / 1000.0, float(pose6[1]) / 1000.0, float(pose6[2]) / 1000.0
+    rz, ry, rx = (np.deg2rad(float(pose6[3])),
+                  np.deg2rad(float(pose6[4])),
+                  np.deg2rad(float(pose6[5])))
+    cz, sz = np.cos(rz), np.sin(rz)
+    cy, sy = np.cos(ry), np.sin(ry)
+    cx, sx = np.cos(rx), np.sin(rx)
+    Rz = np.array([[cz, -sz, 0], [sz, cz, 0], [0, 0, 1]], dtype=np.float64)
+    Ry = np.array([[cy, 0, sy], [0, 1, 0], [-sy, 0, cy]], dtype=np.float64)
+    Rx = np.array([[1, 0, 0], [0, cx, -sx], [0, sx, cx]], dtype=np.float64)
+    R = Rz @ Ry @ Rx
+    T = np.eye(4, dtype=np.float64)
+    T[:3, :3] = R
+    T[:3, 3] = [x, y, z]
+    return T
+
+
+def robot_connect(ip: str, port: int, timeout_sec: float = 2.0):
+    sk = socket.create_connection((ip, port), timeout=timeout_sec)
+    sk.settimeout(timeout_sec)
+    return sk
+
+
+def robot_query_pose(sk: socket.socket, timeout_sec: float = 2.0) -> Optional[dict]:
+    """Send {"command":"get_pose"}; return parsed reply dict or None on error."""
+    try:
+        sk.settimeout(timeout_sec)
+        sk.sendall((json.dumps({"command": "get_pose"}) + "\n").encode("utf-8"))
+        buf = b""
+        while b"\n" not in buf:
+            chunk = sk.recv(65536)
+            if not chunk:
+                return None
+            buf += chunk
+        line = buf.split(b"\n", 1)[0]
+        resp = json.loads(line.decode("utf-8"))
+        if not isinstance(resp, dict) or resp.get("status") != "ok":
+            print("[WARN] robot pose error: {}".format(
+                resp.get("reason") if isinstance(resp, dict) else resp))
+            return None
+        return resp
+    except Exception as e:
+        print("[WARN] robot pose query failed: {}".format(e))
+        return None
 
 
 def capture_depth_burst(cam, n_frames: int, max_wait_ms: int = 1500):
@@ -113,6 +170,19 @@ def main():
     parser.add_argument("--log_cam_stats_sec", type=float, default=0.0)
     parser.add_argument("--show", action="store_true")
 
+    parser.add_argument("--tcp_poses_file", default=None,
+                        help='저장 직전에 읽을 JSON. {"<event_id>": [[..4x4..]]} 형식 '
+                             '(robot base -> EE, meters). 있으면 meta.json 캡처 레코드에 '
+                             'tcp_base_ee_4x4로 임베드. 핸드-아이 캘리브용. '
+                             '(robot_ip 와 동시 사용 시 socket 응답이 우선)')
+
+    parser.add_argument("--robot_ip", default=None,
+                        help="robot_pose_server.py 가 떠 있는 로봇 IP. "
+                             "지정하면 SPACE 저장 직전 소켓으로 joint/tcp/cube_center 받아 "
+                             "meta.json 캡처 레코드에 임베드. 핸드-아이 캘리브용.")
+    parser.add_argument("--robot_port", type=int, default=12348)
+    parser.add_argument("--robot_timeout_sec", type=float, default=2.0)
+
     args = parser.parse_args()
 
     root = ensure_dir(args.root_folder)
@@ -185,6 +255,19 @@ def main():
         intr_path = os.path.join(intr_dir, f"cam{ci}.npz")
         if not os.path.exists(intr_path):
             print(f"[WARN] intrinsics not found: {intr_path} (Step1_dump_intrinsics.py 필요)")
+
+    # 로봇 pose 소켓 연결 (옵션). 실패해도 캡처는 진행.
+    robot_sock: Optional[socket.socket] = None
+    if args.robot_ip:
+        try:
+            robot_sock = robot_connect(args.robot_ip, args.robot_port,
+                                       timeout_sec=args.robot_timeout_sec)
+            print(f"[INFO] connected to robot pose server at "
+                  f"{args.robot_ip}:{args.robot_port}")
+        except Exception as e:
+            print(f"[WARN] could not connect to robot pose server "
+                  f"{args.robot_ip}:{args.robot_port}: {e} (capture will continue without robot pose)")
+            robot_sock = None
 
     cfg = CubeConfig()
     cube = ArucoCubeTarget(cfg)
@@ -312,6 +395,49 @@ def main():
                 cap_rec = {"event_id": int(event_id), "cams": {}}
                 fid = int(event_id)
 
+                if args.tcp_poses_file and os.path.exists(args.tcp_poses_file):
+                    try:
+                        with open(args.tcp_poses_file, "r") as _ftcp:
+                            _tcp_map = json.load(_ftcp)
+                        _tcp = _tcp_map.get(str(event_id))
+                        if _tcp is None:
+                            _tcp = _tcp_map.get(int(event_id)) if isinstance(_tcp_map, dict) else None
+                        if _tcp is not None:
+                            cap_rec["tcp_base_ee_4x4"] = _tcp
+                        else:
+                            print(f"[WARN] tcp_poses_file에 event_id={event_id} 항목 없음 (handeye 페어 생성 시 이 프레임은 skip)")
+                    except Exception as _e:
+                        print(f"[WARN] tcp_poses 읽기 실패: {_e}")
+
+                # 로봇 소켓 (robot_pose_server) 응답이 우선 — tcp_poses_file 보다 신뢰성 높음.
+                if robot_sock is not None:
+                    pose_resp = robot_query_pose(robot_sock,
+                                                 timeout_sec=args.robot_timeout_sec)
+                    if pose_resp is not None:
+                        joint_6dof = pose_resp.get("joint_6dof")
+                        tcp_6dof = pose_resp.get("tcp_6dof")
+                        cube_6dof = pose_resp.get("cube_center_6dof")
+                        cap_rec["robot"] = {
+                            "joint_6dof_deg": joint_6dof,
+                            "tcp_6dof_mm_deg": tcp_6dof,
+                            "cube_center_6dof_mm_deg": cube_6dof,
+                            "gripper_state": pose_resp.get("gripper_state"),
+                            "tool_gripper_z_mm": pose_resp.get("tool_gripper_z_mm"),
+                            "tool_cube_center_z_mm": pose_resp.get("tool_cube_center_z_mm"),
+                            "rotation_convention": "ZYX_intrinsic (Rz @ Ry @ Rx)",
+                        }
+                        if tcp_6dof is not None:
+                            cap_rec["tcp_base_ee_4x4"] = pose6_mm_deg_to_T(tcp_6dof).tolist()
+                        if cube_6dof is not None:
+                            cap_rec["tcp_base_cube_4x4"] = pose6_mm_deg_to_T(cube_6dof).tolist()
+                        print(f"[ROBOT] event_id={event_id}: "
+                              f"joint d1={joint_6dof[0]:.2f}.. "
+                              f"tcp_z={tcp_6dof[2]:.1f}mm cube_z={cube_6dof[2]:.1f}mm "
+                              f"grip={pose_resp.get('gripper_state')}")
+                    else:
+                        print(f"[WARN] event_id={event_id}: robot pose query 실패 "
+                              "(이번 프레임은 robot pose 없이 저장됨)")
+
                 for ci in sorted(frames.keys()):
                     fr = frames[ci]
                     rgb_rel = f"cam{ci}/rgb_{fid:05d}.jpg"
@@ -360,6 +486,15 @@ def main():
         for cam in cams.values():
             cam.stop()
         cv2.destroyAllWindows()
+        if robot_sock is not None:
+            try:
+                robot_sock.sendall((json.dumps({"command": "quit"}) + "\n").encode("utf-8"))
+            except Exception:
+                pass
+            try:
+                robot_sock.close()
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":
