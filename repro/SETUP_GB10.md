@@ -51,7 +51,7 @@ conda activate sam3d
 | `from inference import Inference` | ✅ 전체 import OK | sdpa attention, spconv 백엔드 |
 
 - xformers·flash_attn은 `ATTN_BACKEND=sdpa`로 대체(빌드 회피), diff_gaussian은 선택사항이라 생략.
-- 매 세션 활성화는 repo 루트의 **`source sam3d_env_gb10.sh`** 한 줄 (conda activate + PATH + CUDA_HOME + ATTN_BACKEND + arch list 설정).
+- 매 세션 활성화는 repo 루트의 **`source sam3d_env_gb10.sh`** 한 줄 (conda activate + PATH + CUDA_HOME + ATTN_BACKEND + arch list + `SPCONV_ALGO=native` 설정).
 
 ### 실제 설치 명령 (재현용 기록 — 이 머신엔 이미 적용됨)
 
@@ -133,7 +133,7 @@ rm -rf checkpoints/hf-download
 ls checkpoints/hf              # pipeline.yaml 보이면 성공
 ```
 
-**③ 실행** (첫 실행은 spconv GEMM 커널 JIT 컴파일로 수 분 소요, 이후 캐시됨)
+**③ 실행** (첫 실행은 spconv CUDA 커널 JIT 컴파일로 수 분 소요, 이후 캐시됨)
 ```bash
 python demo.py 2>&1 | tee demo_run.log   # 성공 시 splat.ply 생성
 ```
@@ -152,6 +152,7 @@ python demo.py 2>&1 | tee demo_run.log   # 성공 시 splat.ply 생성
 
 ### 막힐 때
 - **`nvcc fatal: Unsupported gpu architecture 'compute_52'`** (spconv JIT 빌드 중): GB10이 cumm GPU 인식표에 없어 옛 arch로 폴백. → 4번의 cumm `common.py` **GB10 arch 패치** 적용 후 `rm -rf ~/sam3d_src/spconv/spconv/build` 하고 재실행. (검증: `_get_cuda_arch_flags()`가 `compute_120`만 내면 OK)
+- **`cudaErrorIllegalAddress` / `implicit_gemm_pair`** (SAM3D 추론 중): GB10에서 spconv auto가 implicit GEMM 경로를 잡으면 터질 수 있음. → `source sam3d_env_gb10.sh`로 `SPCONV_ALGO=native`를 잡고 실행.
 - **다운로드(`hf download`/MoGe)가 멈춤 (0B/s, `CLOSE-WAIT` 소켓)**: IPv6 죽음 + hf 1.13.0 버그. → `/etc/gai.conf` IPv4 우선 + `curl -4` 직접 받기(②③ 참고). 진단: `curl -4` vs `curl -6`로 같은 파일 받아보면 IPv6가 즉시 실패(exit 7)하는 걸로 바로 갈림.
 - `ModuleNotFoundError: nvdiffrast` (메시 추출 경로에서만): `pip install --no-build-isolation "git+https://github.com/NVlabs/nvdiffrast.git"`
 - `libcu++ requires at least C++ 17`: 해당 확장의 JIT가 c++14 사용 → c++17로 패치 필요

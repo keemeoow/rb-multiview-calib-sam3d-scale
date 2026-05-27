@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-물체 RGB-D 단일 동기 프레임을 improved_instantmesh_pose.py 의 flat layout 으로 직접 저장.
+물체 RGB-D 단일 동기 프레임을 Obj_Step3_sam3d_pose.py 의 flat layout 으로 직접 저장.
 
 사용 예 (캘리브레이션 K/T 까지 한 번에 dump):
   python src/Obj_Step2_capture_obj.py \
@@ -27,9 +27,8 @@ python src/Obj_Step2_capture_obj.py \
 
 이후:
   1) cam{i}_rgb.png 에 SAM/SAM2 돌려 masks/cam{i}_mask.png 생성
-  2) (선택) best view 1장으로 InstantMesh 실행해 mesh.glb 생성
-  3) python improved_instantmesh_pose.py --data_dir ./capture_obj --mask_dir ./masks \
-       --instantmesh_mesh ./mesh.glb --out_dir ./outputs
+  2) python Obj_Step3_sam3d_pose.py --data_dir ./capture_obj --mask_dir ./masks \
+       --out_dir ./outputs --run_sam3d
 """
 
 from __future__ import annotations
@@ -106,7 +105,7 @@ def main() -> None:
                    help="저장 시 N장 median 으로 depth 노이즈 감소. 1 = 단일 프레임.")
     p.add_argument("--depth_burst_max_wait_ms", type=int, default=1500)
     p.add_argument("--no_align_depth_to_color", action="store_true",
-                   help="WARN: improved_instantmesh_pose.py 는 color-aligned depth 를 가정함.")
+                   help="WARN: Obj_Step3_sam3d_pose.py 는 color-aligned depth 를 가정함.")
 
     p.add_argument("--warmup_seconds", type=float, default=2.0)
     p.add_argument("--auto_save", action="store_true",
@@ -123,7 +122,7 @@ def main() -> None:
     align_depth = not args.no_align_depth_to_color
     if not align_depth and not args.use_depth_K:
         print("[WARN] --no_align_depth_to_color 켰는데 --use_depth_K 가 꺼져있음. "
-              "improved_instantmesh_pose.py 가 color_K 로 미-align depth 를 unproject 해서 ray 가 어긋남.")
+              "Obj_Step3_sam3d_pose.py 가 color_K 로 미-align depth 를 unproject 해서 ray 가 어긋남.")
 
     serial_to_idx = load_device_map(intr_dir)
     devs = RealSenseCamera.list_devices()
@@ -254,7 +253,7 @@ def main() -> None:
                 )
 
             print(f"\n[INFO] Done. Flat layout at: {out_dir.resolve()}")
-            print("Next: SAM/SAM2 로 cam*_rgb.png → masks/cam{i}_mask.png 만들기, 그 후 InstantMesh.")
+            print("Next: SAM/SAM2 로 cam*_rgb.png → masks/cam{i}_mask.png 만들기, 그 후 Obj_Step3_sam3d_pose.py --run_sam3d.")
             return
 
     finally:

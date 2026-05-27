@@ -1,0 +1,49 @@
+{
+  "obj_id": "obj1",
+  "center_world_m": [
+    0.06573273780571863,
+    -0.046814616290653005,
+    0.5166019721683349
+  ],
+  "bbox_extents_m": [
+    0.1066515371072058,
+    0.10771367354071715,
+    0.10520391143490593
+  ],
+  "R_bbox_to_world": [
+    [
+      1.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      1.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "use_oriented_bbox": false,
+  "merged_clean_points": 9759,
+  "view_clouds": [
+    {
+      "cam_id": "cam0",
+      "raw_count": 12219,
+      "clean_count": 2919
+    },
+    {
+      "cam_id": "cam1",
+      "raw_count": 22711,
+      "clean_count": 3429
+    },
+    {
+      "cam_id": "cam2",
+      "raw_count": 25737,
+      "clean_count": 3411
+    }
+  ]
+}

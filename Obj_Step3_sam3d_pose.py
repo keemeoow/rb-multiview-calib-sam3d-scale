@@ -1,55 +1,37 @@
 #!/usr/bin/env python3
 """
-Improved Multi-cam InstantMesh Scale Pipeline
-===========================================
-  
-[실행 명령어]
-instantmesh_mesh 먼저 코랩에서 완성시켜서 
+Improved Multi-cam SAM3D Metric Scale Pipeline
+==============================================
 
-PYTHONWARNINGS=ignore python3 src/Obj_Step4최종_improved_instantmesh_pose.py \
-  --data_dir ./capture_obj --mask_dir ./masks \
-  --instantmesh_mesh ./meshes \
-  --out_dir ./outputs --depth_scale 0.001 \
-  --use_oriented_bbox \
-  --scale_method bbox
+실행 예시
+--------
+######## 실행 전 : 하단 명령어에서 "set 이름" 변경
 
+# 이미지 + 마스크 두 파일만으로 native SAM3D GLB 생성
+source sam3d_env_gb10.sh && PYTHONWARNINGS=ignore python3 Obj_Step3_sam3d_pose.py \
+  --data_dir "data(1)/capture_obj_set1" \
+  --mask_dir "data(1)/masks_set1" \
+  --out_dir "data(1)/outputs_set1" \
 
-  PYTHONWARNINGS=ignore python3 src/Obj_Step4최종_improved_instantmesh_pose.py \
-  --data_dir ./capture_obj_set2 --mask_dir ./masks_set2 \
-  --instantmesh_mesh ./instantmesh_result_set2 \
-  --out_dir ./outputs_set2 --depth_scale 0.001 \
-  --use_oriented_bbox \
-  --scale_method bbox
-
-[실행 명령어-2]
-mkdir -p outputs
-
-# (mask_dir basename : instantmesh file) 매핑
-for pair in "obj01:obj1_result.glb" "obj02:obj2_result.glb" "obj03:obj3_result.glb"; do
-  MASK_DIR_NAME=${pair%:*}
-  IM_FILE=${pair#*:}
-  python src/Obj_Step4_improved_instantmesh_pose.py \
-    --data_dir ./capture_obj \
-    --mask_dir ./masks/$MASK_DIR_NAME \
-    --instantmesh_mesh ./instantmesh_result/$IM_FILE \
-    --out_dir ./outputs/$MASK_DIR_NAME \
-    --depth_scale 0.001 \
-    --mask_erode_px 5 \
-    --keep_largest_cc \
-    --dbscan_eps 0.015 \
-    --dbscan_min_points 20 \
-    --dbscan_min_cluster_ratio 0.1 \
-    --scale_method auto \
-    --refine_sim3_icp \
-    --icp_accept_error_m 0.005 \
-    --apply_sim3_rotation
-done
+# SAM3D GLB + 멀티뷰 포인트 클라우드로 scale 정합까지
+source sam3d_env_gb10.sh && PYTHONWARNINGS=ignore python3 Obj_Step3_sam3d_pose.py \
+  --data_dir "data(1)/capture_obj_set3" \
+  --mask_dir "data(1)/masks_set3" \
+  --out_dir "data(1)/outputs_set3" \
+  --depth_scale 0.001 \
+  --mask_close_px 5 --mask_erode_px 3 \
+  --keep_largest_cc \
+  --run_sam3d \
+  --sam3d_cam cam1 \
+  --scale_method auto \
+  --spconv_algo native
 
 목적
 ----
 1. 멀티 RGB-D 카메라 + SAM/SAM2 mask + calibration으로 metric object point cloud 생성
-2. InstantMesh 결과 mesh의 scale을 robust하게 metric scale로 정합
-3. FoundationPose 입력에 바로 사용할 수 있는 scaled mesh(GLB)와 scale report 저장
+2. 지정 cam의 원본 RGB + mask로 SAM3D mesh 생성
+3. SAM3D mesh의 scale을 robust하게 metric scale로 정합
+4. FoundationPose 입력에 바로 사용할 수 있는 scaled mesh(GLB)와 scale report 저장
 
 핵심 개선점
 -----------
@@ -84,26 +66,31 @@ mask_dir/
 
 실행 예시
 --------
-conda activate robot_multicam
+source sam3d_env_gb10.sh
 
 # (A) 객체별 폴더 형식 마스크 일괄 처리 (generate_masks_sam2.py 출력 형식)
-python src/Obj_Step4_improved_instantmesh_pose.py \
+python Obj_Step3_sam3d_pose.py \
   --data_dir ./capture_obj \
   --mask_dir ./masks \
-  --instantmesh_mesh ./instantmesh_result \
   --out_dir ./outputs \
   --depth_scale 0.001 \
   --mask_close_px 5 --mask_erode_px 3 \
+  --run_sam3d \
+  --sam3d_cam cam1 \
   --scale_method auto --refine_sim3_icp --use_oriented_bbox \
-  --force_cam "obj01:cam0,obj03:cam2"
+  --obj_ids obj01
+
+SAM3D는 기본적으로 객체별 subprocess에서 실행한다. spconv/CUDA illegal memory가 발생해도
+메인 process의 metric scale 정합 단계가 오염되지 않게 하기 위함이다.
 
 # (B) 단일 객체 (flat mask 형식)
-python src/Obj_Step4_improved_instantmesh_pose.py \
+python Obj_Step3_sam3d_pose.py \
   --data_dir ./capture_obj \
   --mask_dir ./masks/obj01 \
-  --instantmesh_mesh ./instantmesh_result/object1_result.glb \
   --out_dir ./outputs/obj01 \
   --depth_scale 0.001 --mask_erode_px 5 \
+  --run_sam3d \
+  --sam3d_cam cam1 \
   --scale_method auto --refine_sim3_icp --use_oriented_bbox
 
 지원하는 mask 디렉토리 형식
@@ -112,8 +99,8 @@ python src/Obj_Step4_improved_instantmesh_pose.py \
 2) flat 다중 객체:    mask_dir/cam{N}_obj{X}_mask.png
 3) flat 단일 객체:    mask_dir/cam{N}_mask.png
 
-instantmesh_mesh 가 디렉토리면 다음 패턴들로 자동 매칭:
-  obj{id}.glb, obj{id}_mesh.glb, obj{id}_result.glb,
+sam3d_mesh 가 디렉토리면 다음 패턴들로 자동 매칭:
+  obj{id}_sam3d.glb, obj{id}.glb, obj{id}_mesh.glb, obj{id}_result.glb,
   object{n}_result.glb, object{n}.glb,
   mesh.glb  (단일 객체 fallback)
 
@@ -123,7 +110,7 @@ outputs/<obj_tag>/<obj_tag>_scaled.glb — metric scale 적용된 mesh (Isaac Si
 outputs/<obj_tag>/<obj_tag>_bbox_metric.json — 객체 metric bbox (실측 크기 m)
 outputs/<obj_tag>/<obj_tag>_scale_report.json — 스케일 후보 비교 + ICP refinement 로그
 outputs/<obj_tag>/<obj_tag>_cloud_clean.ply — 멀티뷰 통합 point cloud
-outputs/<obj_tag>/<obj_tag>_input.png — InstantMesh에 사용/사용할 RGBA 입력
+outputs/<obj_tag>/<obj_tag>_sam3d.glb — SAM3D 원본 mesh
 """
 
 from __future__ import annotations
@@ -131,17 +118,18 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import re
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import cv2
 import numpy as np
 import open3d as o3d
 import trimesh
-from PIL import Image
 from scipy.spatial import cKDTree
 from sklearn.neighbors import LocalOutlierFactor
 
@@ -454,9 +442,11 @@ def filter_cloud_open3d(
 ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
     if len(points) == 0:
         return points, colors
+    points = np.ascontiguousarray(points, dtype=np.float64)
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(points)
     if colors is not None and len(colors) == len(points):
+        colors = np.ascontiguousarray(colors, dtype=np.float64)
         pcd.colors = o3d.utility.Vector3dVector(colors)
 
     if voxel_size > 0:
@@ -491,6 +481,7 @@ def keep_largest_cluster(
     """
     if len(points) < min_points:
         return points
+    points = np.ascontiguousarray(points, dtype=np.float64)
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(points)
     labels = np.array(pcd.cluster_dbscan(eps=eps, min_points=min_points))
@@ -572,9 +563,11 @@ def merge_view_clouds(view_clouds: List[ViewCloud]) -> np.ndarray:
 
 
 def save_cloud_ply(path: str | Path, points: np.ndarray, colors: Optional[np.ndarray] = None) -> None:
+    points = np.ascontiguousarray(points, dtype=np.float64)
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(points)
     if colors is not None and len(colors) == len(points):
+        colors = np.ascontiguousarray(colors, dtype=np.float64)
         pcd.colors = o3d.utility.Vector3dVector(colors)
     o3d.io.write_point_cloud(str(path), pcd)
 
@@ -613,6 +606,7 @@ def robust_extent(points: np.ndarray, q_low: float = 2.0, q_high: float = 98.0) 
 def estimate_bbox_info(points: np.ndarray, use_oriented_bbox: bool = False) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     if len(points) < 10:
         raise RuntimeError("Too few points to estimate bbox.")
+    points = np.ascontiguousarray(points, dtype=np.float64)
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(points)
     if use_oriented_bbox:
@@ -708,7 +702,7 @@ def sim3_icp_refine(
     seed: int = 0,
 ) -> Tuple[float, np.ndarray, np.ndarray, dict]:
     """
-    단순 Sim(3) ICP. InstantMesh shape가 완전하지 않으므로 final pose로 쓰기보다 scale refinement용으로 사용.
+    단순 Sim(3) ICP. SAM3D shape가 완전하지 않을 수 있으므로 final pose로 쓰기보다 scale refinement용으로 사용.
     반환: scale, R, t, report. cloud ≈ s R mesh + t
     """
     src = sample_points(mesh_pts, 15000, seed=seed)
@@ -1077,146 +1071,257 @@ def export_scaled_mesh(
 
 
 # ============================================================
-# InstantMesh input view selection and runner
+# SAM3D runner
 # ============================================================
 
-def mask_bbox_area(mask: np.ndarray) -> int:
-    ys, xs = np.where(mask)
-    if len(xs) == 0:
-        return 0
-    return int((xs.max() - xs.min() + 1) * (ys.max() - ys.min() + 1))
+
+class Sam3DRunner:
+    """Lazy in-process wrapper around third_party/sam-3d-objects notebook API."""
+
+    def __init__(
+        self,
+        sam3d_root: str | Path = "third_party/sam-3d-objects",
+        config_path: str | Path = "checkpoints/hf/pipeline.yaml",
+        compile_model: bool = False,
+        spconv_algo: str = "native",
+    ) -> None:
+        self.sam3d_root = Path(sam3d_root).resolve()
+        self.config_path = Path(config_path)
+        if not self.config_path.is_absolute():
+            self.config_path = self.sam3d_root / self.config_path
+        if not self.sam3d_root.exists():
+            raise FileNotFoundError(f"SAM3D root not found: {self.sam3d_root}")
+        if not self.config_path.exists():
+            raise FileNotFoundError(f"SAM3D config not found: {self.config_path}")
+
+        if spconv_algo:
+            os.environ["SPCONV_ALGO"] = spconv_algo
+        print(f"[SAM3D] SPCONV_ALGO={os.environ.get('SPCONV_ALGO', '<unset>')}")
+
+        for path in (self.sam3d_root, self.sam3d_root / "notebook"):
+            path_s = str(path)
+            if path_s not in sys.path:
+                sys.path.insert(0, path_s)
+
+        from inference import Inference, load_image  # type: ignore  # noqa: WPS433
+        try:
+            from inference import load_mask  # type: ignore  # noqa: WPS433
+        except ImportError:
+            from inference import load_single_mask as load_mask  # type: ignore  # noqa: WPS433
+
+        print(f"[SAM3D] loading model: {self.config_path}")
+        self.inference = Inference(str(self.config_path), compile=compile_model)
+        self.load_image = load_image
+        self.load_mask = load_mask
+
+    @staticmethod
+    def _tensor_to_jsonable(value: Any) -> Any:
+        if hasattr(value, "detach"):
+            value = value.detach().cpu().numpy()
+        if isinstance(value, np.ndarray):
+            return value.tolist()
+        return value
+
+    @staticmethod
+    def _summarize_output(output: dict) -> dict:
+        summary = {"output_keys": sorted(str(k) for k in output.keys())}
+        for key, value in output.items():
+            entry = {"type": str(type(value))}
+            if hasattr(value, "vertices"):
+                try:
+                    entry["vertices"] = int(len(value.vertices))
+                except Exception:
+                    pass
+            if hasattr(value, "faces"):
+                try:
+                    entry["faces"] = int(len(value.faces))
+                except Exception:
+                    pass
+            summary[str(key)] = entry
+        return summary
+
+    @staticmethod
+    def _export_native_glb(output: dict, out_glb_path: Path) -> str:
+        preferred_keys = ["glb", "mesh", "meshes", "trimesh", "textured_mesh", "output_mesh"]
+        for key in preferred_keys:
+            obj = output.get(key)
+            if obj is None or not hasattr(obj, "export"):
+                continue
+            try:
+                obj.export(str(out_glb_path))
+                if out_glb_path.exists() and out_glb_path.stat().st_size > 0:
+                    return key
+            except Exception as exc:
+                print(f"[WARN] export failed for output['{key}']: {exc}")
+        raise RuntimeError("SAM3D did not return an exportable native GLB mesh.")
+
+    def _run_and_export(
+        self,
+        image: np.ndarray,
+        mask: np.ndarray,
+        out_glb_path: str | Path,
+        seed: int,
+        image_label: str,
+        mask_label: str,
+        out_gs_ply_path: Optional[str | Path] = None,
+        report_path: Optional[str | Path] = None,
+    ) -> Path:
+        out_glb_path = Path(out_glb_path)
+        out_glb_path.parent.mkdir(parents=True, exist_ok=True)
+
+        image = np.asarray(image, dtype=np.uint8)
+        mask = np.asarray(mask)
+        if mask.ndim == 3:
+            mask = mask[..., -1]
+        mask = mask > 0
+        if image.shape[:2] != mask.shape[:2]:
+            raise ValueError(f"SAM3D image/mask size mismatch: image={image.shape}, mask={mask.shape}")
+        if int(mask.sum()) == 0:
+            raise RuntimeError(f"SAM3D mask is empty: {mask_label}")
+
+        print(f"[SAM3D] running inference: image={image_label}, mask={mask_label}")
+        output = self.inference(image, mask, seed=seed)
+        if not isinstance(output, dict):
+            raise RuntimeError(f"SAM3D returned unsupported output type: {type(output)}")
+
+        export_key = self._export_native_glb(output, out_glb_path)
+        print(f"[SAM3D] saved mesh from output['{export_key}']: {out_glb_path}")
+
+        if out_gs_ply_path is not None and output.get("gs") is not None:
+            out_gs_ply_path = Path(out_gs_ply_path)
+            out_gs_ply_path.parent.mkdir(parents=True, exist_ok=True)
+            output["gs"].save_ply(str(out_gs_ply_path))
+            print(f"[SAM3D] saved gaussian splat: {out_gs_ply_path}")
+
+        if report_path is not None:
+            report = {
+                "image": image_label,
+                "mask": mask_label,
+                "sam3d_glb": str(out_glb_path),
+                "sam3d_gs_ply": str(out_gs_ply_path) if out_gs_ply_path is not None else None,
+                "seed": int(seed),
+                "export_key": export_key,
+                "output_summary": self._summarize_output(output),
+            }
+            for key in ("translation", "scale", "rotation"):
+                if key in output:
+                    report[key] = self._tensor_to_jsonable(output[key])
+            with open(report_path, "w", encoding="utf-8") as f:
+                json.dump(report, f, indent=2)
+            print(f"[SAM3D] saved report: {report_path}")
+
+        return out_glb_path
+
+    def run_arrays(
+        self,
+        image: np.ndarray,
+        mask: np.ndarray,
+        out_glb_path: str | Path,
+        seed: int = 42,
+        image_label: str = "<array>",
+        mask_label: str = "<array>",
+        out_gs_ply_path: Optional[str | Path] = None,
+        report_path: Optional[str | Path] = None,
+    ) -> Path:
+        return self._run_and_export(
+            image=image,
+            mask=mask,
+            out_glb_path=out_glb_path,
+            seed=seed,
+            image_label=image_label,
+            mask_label=mask_label,
+            out_gs_ply_path=out_gs_ply_path,
+            report_path=report_path,
+        )
+
+    def run_paths(
+        self,
+        image_path: str | Path,
+        mask_path: str | Path,
+        out_glb_path: str | Path,
+        seed: int = 42,
+        out_gs_ply_path: Optional[str | Path] = None,
+        report_path: Optional[str | Path] = None,
+    ) -> Path:
+        image_path = Path(image_path)
+        mask_path = Path(mask_path)
+        image = self.load_image(str(image_path))
+        mask = self.load_mask(str(mask_path))
+        return self._run_and_export(
+            image=image,
+            mask=mask,
+            out_glb_path=out_glb_path,
+            seed=seed,
+            image_label=str(image_path),
+            mask_label=str(mask_path),
+            out_gs_ply_path=out_gs_ply_path,
+            report_path=report_path,
+        )
 
 
-def choose_best_view(
-    cameras: Dict[str, CameraPacket],
-    masks: Dict[str, np.ndarray],
-    min_mask_pixels: int = 500,
-    force_cam: Optional[str] = None,
-) -> str:
-    """force_cam이 주어지고 그 카메라가 사용 가능하면 무조건 그걸 사용.
-    그렇지 않으면 area × clipped_penalty × (0.5+compactness) × (0.5+depth_ratio) 점수로 선택."""
-    if force_cam is not None and force_cam in masks:
-        print(f"[INFO] best view forced to {force_cam}")
-        return force_cam
-    if force_cam is not None:
-        print(f"[WARN] forced cam '{force_cam}' not available in masks; fallback to auto-selection")
-
-    best_cam = None
-    best_score = -np.inf
-    for cam_id, cam in cameras.items():
-        mask = masks.get(cam_id)
-        if mask is None:
-            continue
-        area = int(mask.sum())
-        if area < min_mask_pixels:
-            print(f"[{cam_id}] skip best-view: mask too small: {area}")
-            continue
-        ys, xs = np.where(mask)
-        h, w = mask.shape
-        margin = min(xs.min(), ys.min(), w - 1 - xs.max(), h - 1 - ys.max())
-        clipped_penalty = 0.5 if margin < 5 else 1.0
-        bb_area = max(mask_bbox_area(mask), 1)
-        compactness = area / bb_area
-        # depth valid ratio도 반영
-        valid_depth = np.isfinite(cam.depth[mask]) & (cam.depth[mask] > 0)
-        depth_ratio = float(valid_depth.mean()) if len(valid_depth) else 0.0
-        score = area * clipped_penalty * (0.5 + compactness) * (0.5 + depth_ratio)
-        print(f"[{cam_id}] view score={score:.1f}, mask_pixels={area}, compactness={compactness:.3f}, depth_ratio={depth_ratio:.3f}")
-        if score > best_score:
-            best_score = score
-            best_cam = cam_id
-    if best_cam is None:
-        raise RuntimeError("No valid camera view for InstantMesh input.")
-    return best_cam
-
-
-def save_rgba_input(
-    rgb: np.ndarray,
+def save_sam3d_image_mask_pair(
+    image_rgb: np.ndarray,
     mask: np.ndarray,
-    out_path: str | Path,
-    crop: bool = True,
-    padding_pct: float = 0.10,
-    padding_abs_px: Optional[int] = None,
-    output_size: Optional[int] = 512,
-) -> None:
-    """
-    bbox 기준 *정사각형* crop → output_size로 resize → RGBA 저장.
+    image_path: str | Path,
+    mask_path: str | Path,
+) -> Tuple[Path, Path]:
+    image_path = Path(image_path)
+    mask_path = Path(mask_path)
+    image_path.parent.mkdir(parents=True, exist_ok=True)
+    mask_path.parent.mkdir(parents=True, exist_ok=True)
 
-    padding_abs_px가 주어지면 절대 픽셀 padding, 그렇지 않으면 padding_pct (bbox 가장 긴 변의 비율).
-    정사각형 crop은 letterbox 검은 영역 없이 객체가 전체 캔버스를 채우게 만들어 InstantMesh가
-    배경을 객체로 오인할 가능성을 줄임.
-    """
-    rgb = np.clip(rgb, 0, 255).astype(np.uint8)
-    mask_bool = mask.astype(bool)
-    mask_u8 = (mask_bool.astype(np.uint8)) * 255
-
-    if not crop:
-        rgba = np.dstack([rgb, mask_u8])
-    else:
-        ys, xs = np.where(mask_bool)
-        if len(xs) == 0:
-            raise RuntimeError("Cannot crop empty mask.")
-        H, W = mask.shape
-        x0i, x1i = int(xs.min()), int(xs.max())
-        y0i, y1i = int(ys.min()), int(ys.max())
-        bw, bh = x1i - x0i + 1, y1i - y0i + 1
-        side = max(bw, bh)
-        pad = padding_abs_px if padding_abs_px is not None else int(side * float(padding_pct))
-        side_pad = side + 2 * pad
-        cx = (x0i + x1i) // 2
-        cy = (y0i + y1i) // 2
-        half = side_pad // 2
-        sx0, sy0 = cx - half, cy - half
-        sx1, sy1 = sx0 + side_pad, sy0 + side_pad
-
-        pad_l = max(0, -sx0)
-        pad_t = max(0, -sy0)
-        pad_r = max(0, sx1 - W)
-        pad_b = max(0, sy1 - H)
-        sx0c, sy0c = max(0, sx0), max(0, sy0)
-        sx1c, sy1c = min(W, sx1), min(H, sy1)
-
-        rgb_crop = rgb[sy0c:sy1c, sx0c:sx1c]
-        mask_crop = mask_u8[sy0c:sy1c, sx0c:sx1c]
-        rgb_crop = np.pad(rgb_crop, ((pad_t, pad_b), (pad_l, pad_r), (0, 0)), constant_values=0)
-        mask_crop = np.pad(mask_crop, ((pad_t, pad_b), (pad_l, pad_r)), constant_values=0)
-        rgba = np.dstack([rgb_crop, mask_crop])
-
-    if output_size is not None:
-        pil = Image.fromarray(rgba).resize((output_size, output_size), Image.LANCZOS)
-        pil.save(out_path)
-    else:
-        Image.fromarray(rgba).save(out_path)
-    print(f"Saved InstantMesh RGBA input: {out_path}")
+    image_rgb = np.clip(image_rgb, 0, 255).astype(np.uint8)
+    mask_u8 = (mask.astype(bool).astype(np.uint8)) * 255
+    cv2.imwrite(str(image_path), cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR))
+    cv2.imwrite(str(mask_path), mask_u8)
+    return image_path, mask_path
 
 
-def run_instantmesh(
-    instantmesh_root: str | Path,
-    config_path: str | Path,
-    input_png: str | Path,
-    output_dir: str | Path,
-    python_bin: str = "python",
-    no_rembg: bool = True,
-    export_texmap: bool = True,
-) -> None:
-    instantmesh_root = Path(instantmesh_root)
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    cmd = [python_bin, "run.py", str(config_path), str(input_png), "--output_path", str(output_dir)]
-    if no_rembg:
-        cmd.append("--no_rembg")
-    if export_texmap:
-        cmd.append("--export_texmap")
-    print("Running InstantMesh:", " ".join(cmd))
-    subprocess.run(cmd, cwd=str(instantmesh_root), check=True)
+def run_sam3d_subprocess(
+    image_path: str | Path,
+    mask_path: str | Path,
+    out_glb_path: str | Path,
+    out_dir: str | Path,
+    sam3d_root: str | Path,
+    sam3d_config: str | Path,
+    sam3d_seed: int,
+    spconv_algo: str = "native",
+    sam3d_compile: bool = False,
+    sam3d_save_gs: bool = False,
+) -> Path:
+    cmd = [
+        sys.executable,
+        str(Path(__file__).resolve()),
+        "--image_path", str(image_path),
+        "--sam3d_mask_path", str(mask_path),
+        "--mesh_out", str(out_glb_path),
+        "--out_dir", str(out_dir),
+        "--sam3d_root", str(sam3d_root),
+        "--sam3d_config", str(sam3d_config),
+        "--sam3d_seed", str(sam3d_seed),
+        "--spconv_algo", str(spconv_algo),
+    ]
+    if sam3d_compile:
+        cmd.append("--sam3d_compile")
+    if sam3d_save_gs:
+        cmd.append("--sam3d_save_gs")
+    print("[SAM3D] subprocess:", " ".join(cmd))
+    env = os.environ.copy()
+    if spconv_algo:
+        env["SPCONV_ALGO"] = spconv_algo
+    subprocess.run(cmd, check=True, env=env)
+    out_glb_path = Path(out_glb_path)
+    if not out_glb_path.exists() or out_glb_path.stat().st_size <= 0:
+        raise RuntimeError(f"SAM3D subprocess did not produce mesh: {out_glb_path}")
+    return out_glb_path
 
 
-def resolve_mesh_path(mesh_arg: Optional[Path], obj_tag: str, num_objects: int) -> Optional[Path]:
+def resolve_sam3d_mesh_path(mesh_arg: Optional[Path], obj_tag: str, num_objects: int) -> Optional[Path]:
     """
     인자가 디렉토리면 obj_tag와 매칭되는 mesh 파일을 자동 탐색.
     지원 패턴 (확장자 .glb/.obj/.ply/.stl 순):
-      {obj_tag}.X, {obj_tag}_mesh.X, {obj_tag}_result.X,
-      object{n}_result.X, object{n}.X    (obj_tag가 obj{NN} 형식이면 n=int(NN))
+      {obj_tag}_sam3d.X, {obj_tag}.X, {obj_tag}_mesh.X, {obj_tag}_result.X,
+      object{n}_sam3d.X, object{n}_result.X, object{n}.X    (obj_tag가 obj{NN} 형식이면 n=int(NN))
       mesh.X    (단일 객체 fallback)
     """
     if mesh_arg is None:
@@ -1226,9 +1331,9 @@ def resolve_mesh_path(mesh_arg: Optional[Path], obj_tag: str, num_objects: int) 
         m = re.search(r"(\d+)", obj_tag)
         num = int(m.group(1)) if m else None
 
-        candidates = [f"{obj_tag}", f"{obj_tag}_mesh", f"{obj_tag}_result"]
+        candidates = [f"{obj_tag}_sam3d", f"{obj_tag}", f"{obj_tag}_mesh", f"{obj_tag}_result"]
         if num is not None:
-            candidates += [f"object{num}_result", f"object{num}", f"obj{num}_result"]
+            candidates += [f"object{num}_sam3d", f"object{num}_result", f"object{num}", f"obj{num}_result"]
         candidates.append("mesh")
 
         for stem in candidates:
@@ -1239,9 +1344,9 @@ def resolve_mesh_path(mesh_arg: Optional[Path], obj_tag: str, num_objects: int) 
         return None
     if num_objects == 1:
         if not mesh_arg.exists():
-            raise FileNotFoundError(f"InstantMesh mesh not found: {mesh_arg}")
+            raise FileNotFoundError(f"SAM3D mesh not found: {mesh_arg}")
         return mesh_arg
-    print(f"[{obj_tag}] Multi-object mode requires --instantmesh_mesh to be a directory.")
+    print(f"[{obj_tag}] Multi-object mode requires --sam3d_mesh to be a directory.")
     return None
 
 
@@ -1251,9 +1356,17 @@ def resolve_mesh_path(mesh_arg: Optional[Path], obj_tag: str, num_objects: int) 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data_dir", required=True)
-    parser.add_argument("--mask_dir", required=True)
-    parser.add_argument("--out_dir", default="outputs_multicam_instantmesh")
+    parser.add_argument("--data_dir", default="",
+                        help="멀티뷰 metric scale 모드 입력 폴더. direct SAM3D 모드에서는 생략 가능.")
+    parser.add_argument("--mask_dir", default="",
+                        help="멀티뷰 metric scale 모드 mask 폴더. direct SAM3D 모드에서는 생략 가능.")
+    parser.add_argument("--image_path", default="",
+                        help="Direct SAM3D mode: RGB image path.")
+    parser.add_argument("--sam3d_mask_path", default="",
+                        help="Direct SAM3D mode: mask image path.")
+    parser.add_argument("--mesh_out", default="",
+                        help="Direct SAM3D mode output GLB path. Empty = out_dir/<mask_stem>_sam3d.glb.")
+    parser.add_argument("--out_dir", default="outputs_multicam_sam3d")
 
     parser.add_argument("--depth_scale", type=float, default=0.001, help="RealSense uint16 mm -> meter: 0.001")
     parser.add_argument("--min_depth", type=float, default=0.05)
@@ -1284,25 +1397,22 @@ def main() -> None:
 
     parser.add_argument("--obj_ids", default="", help="Comma-separated object ids. Empty = all detected. Single-object fallback id is 0.")
 
-    parser.add_argument("--run_instantmesh", action="store_true")
-    parser.add_argument("--instantmesh_root", default="InstantMesh")
-    parser.add_argument("--instantmesh_config", default="configs/instant-mesh-large.yaml")
-    parser.add_argument("--instantmesh_python", default="python")
-    parser.add_argument("--instantmesh_mesh", default="", help="Pre-generated mesh file or directory containing obj{id}.glb/.obj/.ply")
-
-    parser.add_argument("--force_cam", default="",
-                        help="객체별 best view 수동 지정. 예: 'obj01:cam0,obj03:cam2' "
-                             "또는 단일 객체에서는 'cam0' 만으로도 가능.")
-    parser.add_argument("--rgba_padding_pct", type=float, default=0.10,
-                        help="RGBA crop의 bbox 비율 padding. padding_abs_px가 있으면 무시.")
-    parser.add_argument("--rgba_padding_abs_px", type=int, default=0,
-                        help="RGBA crop의 절대 픽셀 padding. 0이면 padding_pct 사용.")
-    parser.add_argument("--rgba_output_size", type=int, default=512,
-                        help="RGBA 입력 정사각형 한 변 (px). InstantMesh 권장 512.")
-    parser.add_argument("--instantmesh_input_dir", default="",
-                        help="별도 InstantMesh 입력 PNG 저장 경로. "
-                             "예: ./instantmesh_input → <dir>/<obj_tag>/object_input.png 도 함께 저장. "
-                             "비우면 out_dir에만 저장.")
+    parser.add_argument("--run_sam3d", action="store_true",
+                        help="Run SAM3D on image+mask and save <obj_tag>_sam3d.glb.")
+    parser.add_argument("--sam3d_root", default="third_party/sam-3d-objects")
+    parser.add_argument("--sam3d_config", default="checkpoints/hf/pipeline.yaml")
+    parser.add_argument("--sam3d_compile", action="store_true")
+    parser.add_argument("--sam3d_seed", type=int, default=42)
+    parser.add_argument("--spconv_algo", choices=["auto", "implicit_gemm", "native"], default="native",
+                        help="spconv convolution algorithm for SAM3D. GB10 defaults to native to avoid implicit_gemm CUDA faults.")
+    parser.add_argument("--sam3d_save_gs", action="store_true",
+                        help="Also save SAM3D gaussian splat as <obj_tag>_sam3d_splat.ply.")
+    parser.add_argument("--sam3d_mesh", default="",
+                        help="Pre-generated SAM3D mesh file or directory containing obj{id}_sam3d.glb/.obj/.ply")
+    parser.add_argument("--sam3d_cam", default="",
+                        help="멀티뷰 모드에서 SAM3D에 넣을 cam id. 비우면 객체 mask가 있는 첫 cam을 사용.")
+    parser.add_argument("--sam3d_in_process", action="store_true",
+                        help="멀티뷰 모드에서도 SAM3D를 같은 Python process에서 실행. 기본은 CUDA fault 격리를 위해 subprocess.")
 
     parser.add_argument("--scale_method", choices=["auto", "bbox", "pairwise", "view_voting", "iou"],
                         default="auto",
@@ -1322,6 +1432,39 @@ def main() -> None:
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    direct_sam3d_mode = bool(args.image_path or args.sam3d_mask_path)
+    if direct_sam3d_mode:
+        if not args.image_path or not args.sam3d_mask_path:
+            raise ValueError("Direct SAM3D mode requires both --image_path and --sam3d_mask_path.")
+        image_path = Path(args.image_path)
+        mask_path = Path(args.sam3d_mask_path)
+        if not image_path.exists():
+            raise FileNotFoundError(f"Image not found: {image_path}")
+        if not mask_path.exists():
+            raise FileNotFoundError(f"Mask not found: {mask_path}")
+
+        out_glb = Path(args.mesh_out) if args.mesh_out else out_dir / f"{mask_path.stem.replace('_mask', '')}_sam3d.glb"
+        runner = Sam3DRunner(
+            sam3d_root=args.sam3d_root,
+            config_path=args.sam3d_config,
+            compile_model=args.sam3d_compile,
+            spconv_algo=args.spconv_algo,
+        )
+        runner.run_paths(
+            image_path=image_path,
+            mask_path=mask_path,
+            out_glb_path=out_glb,
+            seed=args.sam3d_seed,
+            out_gs_ply_path=out_glb.with_name(f"{out_glb.stem}_splat.ply") if args.sam3d_save_gs else None,
+            report_path=out_glb.with_name(f"{out_glb.stem}_report.json"),
+        )
+        print(f"\nSaved SAM3D native mesh: {out_glb}")
+        return
+
+    if not args.data_dir or not args.mask_dir:
+        raise ValueError("Multiview metric mode requires --data_dir and --mask_dir. "
+                         "For direct SAM3D GLB generation, use --image_path and --sam3d_mask_path.")
+
     cameras = load_cameras_from_folder(args.data_dir, depth_scale=args.depth_scale)
     print(f"Loaded cameras: {list(cameras.keys())}")
 
@@ -1329,25 +1472,9 @@ def main() -> None:
     masks_by_obj_raw = load_masks_per_object(args.mask_dir, cameras, obj_ids=selected_obj_ids)
     print(f"Objects to process: {sorted(masks_by_obj_raw.keys())}")
 
-    mesh_arg = Path(args.instantmesh_mesh) if args.instantmesh_mesh else None
+    mesh_arg = Path(args.sam3d_mesh) if args.sam3d_mesh else None
+    sam3d_runner: Optional[Sam3DRunner] = None
     results_summary: Dict[str, dict] = {}
-
-    # --force_cam 파싱: "obj01:cam0,obj03:cam2" 또는 단일 객체용 "cam0"
-    force_cam_map: Dict[str, str] = {}
-    force_cam_global: Optional[str] = None
-    if args.force_cam:
-        s = args.force_cam.strip()
-        if ":" not in s:
-            force_cam_global = s
-        else:
-            for pair in s.split(","):
-                if ":" in pair:
-                    k, v = pair.split(":", 1)
-                    force_cam_map[k.strip()] = v.strip()
-
-    instantmesh_input_root = Path(args.instantmesh_input_dir) if args.instantmesh_input_dir else None
-    if instantmesh_input_root is not None:
-        instantmesh_input_root.mkdir(parents=True, exist_ok=True)
 
     for obj_id in sorted(masks_by_obj_raw.keys()):
         # obj_id가 이미 "obj"로 시작하면 그대로, 아니면 obj{id} 형식
@@ -1433,47 +1560,60 @@ def main() -> None:
             json.dump(bbox_info, f, indent=2)
         print(f"[{obj_tag}] bbox_extents_m={bbox_extents_m}, center={center_world}")
 
-        forced_cam = force_cam_map.get(obj_tag) or force_cam_map.get(obj_id) or force_cam_global
-        best_cam = choose_best_view(obj_cams, masks, force_cam=forced_cam)
+        mesh_path = resolve_sam3d_mesh_path(mesh_arg, obj_tag=obj_tag, num_objects=len(masks_by_obj_raw))
+        sam3d_cam: Optional[str] = args.sam3d_cam.strip() or None
+        if mesh_path is None and args.run_sam3d:
+            if sam3d_cam:
+                if sam3d_cam not in raw_masks or sam3d_cam not in obj_cams:
+                    print(f"[{obj_tag}] Skip SAM3D: --sam3d_cam {sam3d_cam} has no RGB/mask for this object.")
+                    continue
+            else:
+                available = sorted(cid for cid in raw_masks.keys() if cid in obj_cams)
+                if not available:
+                    print(f"[{obj_tag}] Skip SAM3D: no camera has both RGB and mask.")
+                    continue
+                sam3d_cam = available[0]
+            print(f"[{obj_tag}] SAM3D input: original {sam3d_cam}_rgb + {sam3d_cam}_mask")
 
-        input_png = obj_out_dir / f"{obj_tag}_input.png"
-        padding_abs = args.rgba_padding_abs_px if args.rgba_padding_abs_px > 0 else None
-        save_rgba_input(
-            obj_cams[best_cam].rgb, masks[best_cam], input_png,
-            crop=True,
-            padding_pct=args.rgba_padding_pct,
-            padding_abs_px=padding_abs,
-            output_size=args.rgba_output_size,
-        )
-        # 외부 InstantMesh 워크플로용 별도 디렉토리에도 저장
-        if instantmesh_input_root is not None:
-            im_obj_dir = instantmesh_input_root / obj_tag
-            im_obj_dir.mkdir(parents=True, exist_ok=True)
-            save_rgba_input(
-                obj_cams[best_cam].rgb, masks[best_cam], im_obj_dir / "object_input.png",
-                crop=True,
-                padding_pct=args.rgba_padding_pct,
-                padding_abs_px=padding_abs,
-                output_size=args.rgba_output_size,
+            sam3d_image_path, sam3d_mask_path = save_sam3d_image_mask_pair(
+                image_rgb=obj_cams[sam3d_cam].rgb,
+                mask=raw_masks[sam3d_cam],
+                image_path=obj_out_dir / f"{obj_tag}_{sam3d_cam}_rgb.png",
+                mask_path=obj_out_dir / f"{obj_tag}_{sam3d_cam}_mask.png",
             )
-            with open(im_obj_dir / "best_view.json", "w", encoding="utf-8") as f:
-                json.dump({"best_cam": best_cam, "forced": forced_cam}, f, indent=2)
+            out_sam3d_glb = obj_out_dir / f"{obj_tag}_sam3d.glb"
+            if args.sam3d_in_process:
+                if sam3d_runner is None:
+                    sam3d_runner = Sam3DRunner(
+                        sam3d_root=args.sam3d_root,
+                        config_path=args.sam3d_config,
+                        compile_model=args.sam3d_compile,
+                        spconv_algo=args.spconv_algo,
+                    )
+                mesh_path = sam3d_runner.run_paths(
+                    image_path=sam3d_image_path,
+                    mask_path=sam3d_mask_path,
+                    out_glb_path=out_sam3d_glb,
+                    seed=args.sam3d_seed,
+                    out_gs_ply_path=(obj_out_dir / f"{obj_tag}_sam3d_splat.ply") if args.sam3d_save_gs else None,
+                    report_path=obj_out_dir / f"{obj_tag}_sam3d_report.json",
+                )
+            else:
+                mesh_path = run_sam3d_subprocess(
+                    image_path=sam3d_image_path,
+                    mask_path=sam3d_mask_path,
+                    out_glb_path=out_sam3d_glb,
+                    out_dir=obj_out_dir,
+                    sam3d_root=args.sam3d_root,
+                    sam3d_config=args.sam3d_config,
+                    sam3d_seed=args.sam3d_seed,
+                    spconv_algo=args.spconv_algo,
+                    sam3d_compile=args.sam3d_compile,
+                    sam3d_save_gs=args.sam3d_save_gs,
+                )
 
-        if args.run_instantmesh:
-            im_out = out_dir / "instantmesh_output" / obj_tag
-            run_instantmesh(
-                instantmesh_root=args.instantmesh_root,
-                config_path=args.instantmesh_config,
-                input_png=input_png.resolve(),
-                output_dir=im_out,
-                python_bin=args.instantmesh_python,
-                no_rembg=True,
-                export_texmap=True,
-            )
-
-        mesh_path = resolve_mesh_path(mesh_arg, obj_tag=obj_tag, num_objects=len(masks_by_obj_raw))
         if mesh_path is None:
-            print(f"[{obj_tag}] Skip mesh scaling: no mesh provided or no matching mesh file.")
+            print(f"[{obj_tag}] Skip mesh scaling: no SAM3D mesh provided/generated.")
             continue
 
         mesh = load_mesh_any(mesh_path)
@@ -1523,7 +1663,7 @@ def main() -> None:
             "mesh_path": str(mesh_path),
             "scaled_glb": str(out_glb),
             "bbox_info": bbox_info,
-            "best_cam_for_instantmesh": best_cam,
+            "sam3d_cam": sam3d_cam,
             "silhouette_iou_per_cam": ious,
             "silhouette_iou_mean": mean_iou,
             "foundationpose_note": "For FoundationPose, usually use obj*_scaled.glb centered at origin and provide RGB-D/mask for pose estimation. Do not enable --apply_world_pose unless you explicitly need world-placed visualization mesh.",
@@ -1550,9 +1690,8 @@ def main() -> None:
             "scale": final_scale,
             "scale_report": str(report_path),
             "cloud_clean_ply": str(obj_out_dir / f"{obj_tag}_cloud_clean.ply"),
-            "input_png": str(input_png),
-            "best_cam": best_cam,
-            "forced_cam": forced_cam,
+            "sam3d_mesh": str(mesh_path),
+            "sam3d_cam": sam3d_cam,
             "bbox_extents_m": bbox_extents_m.tolist(),
             "center_world_m": center_world.tolist(),
         }
@@ -1563,7 +1702,7 @@ def main() -> None:
             json.dump(results_summary, f, indent=2)
         print(f"\nSaved summary: {summary_path}")
     else:
-        print("\nNo object produced scaled mesh. Check masks, depth, and --instantmesh_mesh.")
+        print("\nNo object produced scaled mesh. Check masks, depth, and --run_sam3d/--sam3d_mesh.")
 
 
 if __name__ == "__main__":

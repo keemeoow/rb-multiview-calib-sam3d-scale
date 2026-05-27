@@ -21,5 +21,8 @@ export CUMM_CUDA_ARCH_LIST="12.0+PTX"
 # Use torch built-in scaled-dot-product attention (avoids xformers/flash_attn, which we did NOT build).
 export ATTN_BACKEND="sdpa"
 
+# GB10에서 spconv auto/implicit_gemm 경로가 illegal memory를 낼 수 있어 native 커널을 기본값으로 둔다.
+export SPCONV_ALGO="native"
+
 echo "[sam3d-gb10] env ready. python=$(which python)  nvcc=$(nvcc --version | tail -1)"
 echo "[sam3d-gb10] run demo:  cd third_party/sam-3d-objects && python demo.py   (needs checkpoints/hf)"

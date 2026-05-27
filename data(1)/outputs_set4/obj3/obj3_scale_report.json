@@ -1,0 +1,254 @@
+{
+  "scale_method": "auto",
+  "scale_mode": "median",
+  "selected_candidate": {
+    "name": "grid_chamfer_probe",
+    "scale": 0.1364078075,
+    "score_m": 0.011640152808670668,
+    "iou_mean": 0.28106003541702607,
+    "details": {}
+  },
+  "final_scale": 0.1364078075,
+  "candidates_top30": [
+    {
+      "name": "grid_chamfer_probe",
+      "scale": 0.1364078075,
+      "chamfer_score_m": 0.011640152808670668,
+      "iou_mean": 0.28106003541702607
+    },
+    {
+      "name": "grid_chamfer_probe",
+      "scale": 0.1363869207,
+      "chamfer_score_m": 0.011642496834099961,
+      "iou_mean": 0.2811042507040234
+    },
+    {
+      "name": "grid_chamfer_probe",
+      "scale": 0.1435651796,
+      "chamfer_score_m": 0.011677634760732416,
+      "iou_mean": 0.2813183586794163
+    },
+    {
+      "name": "global_pairwise_median",
+      "scale": 0.14356517964165133,
+      "chamfer_score_m": 0.011677634763327178,
+      "iou_mean": 0.2813183586794163
+    },
+    {
+      "name": "grid_chamfer_probe",
+      "scale": 0.1444317962,
+      "chamfer_score_m": 0.011680038981862702,
+      "iou_mean": 0.28101541886401593
+    },
+    {
+      "name": "grid_chamfer_probe",
+      "scale": 0.1414954113,
+      "chamfer_score_m": 0.011680461020806708,
+      "iou_mean": 0.28105728485030185
+    },
+    {
+      "name": "grid_chamfer_probe",
+      "scale": 0.1507434386,
+      "chamfer_score_m": 0.011785836986570796,
+      "iou_mean": 0.2797576098468481
+    },
+    {
+      "name": "grid_chamfer_probe",
+      "scale": 0.1524557849,
+      "chamfer_score_m": 0.011833586438687042,
+      "iou_mean": 0.27990083469697474
+    },
+    {
+      "name": "grid_chamfer_probe",
+      "scale": 0.1292086617,
+      "chamfer_score_m": 0.011896872575332416,
+      "iou_mean": 0.28021558308083927
+    },
+    {
+      "name": "grid_chamfer_probe",
+      "scale": 0.1283838189,
+      "chamfer_score_m": 0.011920704938412192,
+      "iou_mean": 0.27997576546103087
+    },
+    {
+      "name": "grid_chamfer_probe",
+      "scale": 0.1579216976,
+      "chamfer_score_m": 0.01202414444673255,
+      "iou_mean": 0.27805363811059725
+    },
+    {
+      "name": "view_voting_mad_median",
+      "scale": 0.1604797735747647,
+      "chamfer_score_m": 0.012083467437307838,
+      "iou_mean": 0.27734248156177976
+    },
+    {
+      "name": "grid_chamfer_probe",
+      "scale": 0.1604797736,
+      "chamfer_score_m": 0.012083467437670473,
+      "iou_mean": 0.27734248156177976
+    },
+    {
+      "name": "grid_chamfer_probe",
+      "scale": 0.1617090415,
+      "chamfer_score_m": 0.01210358200060747,
+      "iou_mean": 0.2766770692781624
+    },
+    {
+      "name": "grid_chamfer_probe",
+      "scale": 0.1650999566,
+      "chamfer_score_m": 0.012198022017779413,
+      "iou_mean": 0.27547614116176544
+    },
+    {
+      "name": "grid_chamfer_probe",
+      "scale": 0.1685037623,
+      "chamfer_score_m": 0.012279067115879687,
+      "iou_mean": 0.2738314150235882
+    },
+    {
+      "name": "grid_chamfer_probe",
+      "scale": 0.1718158566,
+      "chamfer_score_m": 0.012300515790825733,
+      "iou_mean": 0.2723213007736979
+    },
+    {
+      "name": "grid_chamfer_probe",
+      "scale": 0.1722782156,
+      "chamfer_score_m": 0.012304319531271788,
+      "iou_mean": 0.27232083441741023
+    },
+    {
+      "name": "grid_chamfer_probe",
+      "scale": 0.1220304027,
+      "chamfer_score_m": 0.012311691332594346,
+      "iou_mean": 0.2777686143857368
+    },
+    {
+      "name": "grid_chamfer_probe",
+      "scale": 0.1212817811,
+      "chamfer_score_m": 0.012387526006814396,
+      "iou_mean": 0.277553565038912
+    },
+    {
+      "name": "grid_chamfer_probe",
+      "scale": 0.1765277509,
+      "chamfer_score_m": 0.01240212952110716,
+      "iou_mean": 0.26985452511992464
+    },
+    {
+      "name": "grid_chamfer_probe",
+      "scale": 0.1819226717,
+      "chamfer_score_m": 0.012603466748633642,
+      "iou_mean": 0.26706213183735067
+    },
+    {
+      "name": "grid_chamfer_probe",
+      "scale": 0.1845517396,
+      "chamfer_score_m": 0.012704985561352697,
+      "iou_mean": 0.26516272133748564
+    },
+    {
+      "name": "grid_chamfer_probe",
+      "scale": 0.1920294868,
+      "chamfer_score_m": 0.012961949904881571,
+      "iou_mean": 0.26038754965537286
+    },
+    {
+      "name": "grid_chamfer_probe",
+      "scale": 0.1925757283,
+      "chamfer_score_m": 0.013004213884660292,
+      "iou_mean": 0.2600657440025675
+    },
+    {
+      "name": "grid_chamfer_probe",
+      "scale": 0.1148521437,
+      "chamfer_score_m": 0.013124968734284087,
+      "iou_mean": 0.27397374754873627
+    },
+    {
+      "name": "grid_chamfer_probe",
+      "scale": 0.2009912515,
+      "chamfer_score_m": 0.013237574856088938,
+      "iou_mean": 0.2540252600249685
+    },
+    {
+      "name": "global_robust_bbox",
+      "scale": 0.2021363018902436,
+      "chamfer_score_m": 0.013267199194578479,
+      "iou_mean": 0.25300494119973577
+    },
+    {
+      "name": "grid_chamfer_probe",
+      "scale": 0.2021363019,
+      "chamfer_score_m": 0.013267199194815383,
+      "iou_mean": 0.25300494119973577
+    },
+    {
+      "name": "grid_chamfer_probe",
+      "scale": 0.1123358415,
+      "chamfer_score_m": 0.01335935141050096,
+      "iou_mean": 0.27184576497439195
+    }
+  ],
+  "sim3_icp_report": null,
+  "mesh_path": "data(1)/outputs_set4/obj3/obj3_sam3d.glb",
+  "scaled_glb": "data(1)/outputs_set4/obj3/obj3_scaled.glb",
+  "bbox_info": {
+    "obj_id": "obj3",
+    "center_world_m": [
+      -0.05000370489778353,
+      0.03159623486352827,
+      0.3425084544201539
+    ],
+    "bbox_extents_m": [
+      0.11725985813623287,
+      0.0508493984071854,
+      0.11148856395911072
+    ],
+    "R_bbox_to_world": [
+      [
+        1.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        1.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "use_oriented_bbox": false,
+    "merged_clean_points": 3444,
+    "view_clouds": [
+      {
+        "cam_id": "cam0",
+        "raw_count": 7852,
+        "clean_count": 1445
+      },
+      {
+        "cam_id": "cam1",
+        "raw_count": 3187,
+        "clean_count": 1253
+      },
+      {
+        "cam_id": "cam2",
+        "raw_count": 3448,
+        "clean_count": 779
+      }
+    ]
+  },
+  "sam3d_cam": "cam1",
+  "silhouette_iou_per_cam": {
+    "cam0": 0.3383521539104977,
+    "cam1": 0.24575440888308295,
+    "cam2": 0.2590735434574976
+  },
+  "silhouette_iou_mean": 0.28106003541702607,
+  "foundationpose_note": "For FoundationPose, usually use obj*_scaled.glb centered at origin and provide RGB-D/mask for pose estimation. Do not enable --apply_world_pose unless you explicitly need world-placed visualization mesh."
+}

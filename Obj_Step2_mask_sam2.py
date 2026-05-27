@@ -261,9 +261,9 @@ def main() -> None:
         warn = "  [WARN] <2 cams → metric scale unreliable" if len(cams) < 2 else ""
         print(f"  obj{oi}: cams={cams}{warn}")
 
-    print(f"\nNext: python src/instantmesh_pose.py "
+    print(f"\nNext: python Obj_Step3_sam3d_pose.py "
           f"--data_dir {capture_dir} --mask_dir {masks_dir} "
-          f"--out_dir ./outputs --depth_scale {load_depth_scale(capture_dir)}")
+          f"--out_dir ./outputs --depth_scale {load_depth_scale(capture_dir)} --run_sam3d")
 
 
 if __name__ == "__main__":
