@@ -31,7 +31,7 @@ REPO_ROOT = os.path.abspath(os.path.join(THIS_DIR, "..", ".."))
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
-from src._camera import RealSenseCamera
+from _camera import RealSenseCamera
 from _aruco_cube import CubeConfig, ArucoCubeTarget
 
 

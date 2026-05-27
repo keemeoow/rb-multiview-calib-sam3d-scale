@@ -1,5 +1,3 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
 """
 robot_pose_server.py
 
@@ -30,6 +28,9 @@ REPL 명령어 (Calib_Step2 SPACE 와 독립):
   p <axis>,<v> / j <axis>,<v> : relative move (axis: x|y|z|rz|ry|rx, d1..d6)
   show / speed <0-100> / go / gc / q
 """
+
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
 
 from i611_MCS import *
 from teachdata import *
