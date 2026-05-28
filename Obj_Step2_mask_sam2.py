@@ -4,21 +4,21 @@ SAM 2 기반 multi-cam mask 생성 (카메라별 × 물체별 직접 클릭).
 
 [실행명령어]
 conda activate sam2env
+cd /home/sprout/Desktop/**jiwoo/rb-multiview-calib-sam3d-scale
 
-PYTHONWARNINGS=ignore python3 src/Obj_Step3최종_sam2_pose.py \
-  --capture_dir ./capture_obj \
-  --masks_dir ./masks \
+SET="data/capture_obj_set4"
+MASKS="data/masks_set4"
+
+PYTHONWARNINGS=ignore /home/sprout/anaconda3/envs/sam2env/bin/python3 \
+  Obj_Step2_mask_sam2.py \
+  --capture_dir   "$SET" \
+  --masks_dir     "$MASKS" \
   --sam_checkpoint ~/sam2_checkpoints/sam2_hiera_large.pt \
-  --sam_config configs/sam2/sam2_hiera_l.yaml \
-  --num_objects 3 --device cpu
+  --sam_config    configs/sam2/sam2_hiera_l.yaml \
+  --num_objects 2 \
+  --device cpu
 
-[마스크도 새 폴더]
-python src/Obj_Step3최종_sam2_pose.py \
-  --capture_dir ./capture_obj_set2 --masks_dir ./masks_set2 \
-  --sam_checkpoint ~/sam2_checkpoints/sam2_hiera_large.pt \
-  --sam_config configs/sam2/sam2_hiera_l.yaml \
-  --num_objects 3 --device cpu
-
+[사용법]
 UI: 한 창씩 (cam, obj) 슬롯 표시. cam0 → obj1, obj2, ... → cam1 → obj1, ... 순서.
   좌클릭   : 양성 포인트
   우클릭   : 음성 포인트 (boundary 정제)
