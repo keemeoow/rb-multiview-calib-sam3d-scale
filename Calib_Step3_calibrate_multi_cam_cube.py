@@ -416,28 +416,56 @@ def main():
             print(f"[INFO] cam{ci}: prior 기반 IPPE 재해소 {rescued}개 프레임 추가 활용")
 
         # 3차 평균(prior 재해소 포함) → 최종
-        # robust_se3_average 가 MAD(k_mad) 기반 자동 outlier 거부를 수행.
-        # 거부된 프레임 ID 를 노출해 정확도가 떨어지는 프레임을 사용자에게 보고.
+        # Iterative MAD: 1차 reject 후 분포가 좁아지면 같은 k_mad가 더 엄격해져
+        # 1차 통과한 marginal outlier 도 잡힘. 최대 3 pass, 최소 4프레임 보존.
         if robust_se3_average is not None and len(T_list_c) >= 3:
-            T_avg, inlier_mask = robust_se3_average(
-                T_list_c, k_mad=args.reject_kmad, return_inliers=True
-            )
-            rejected_idx = [i for i, ok in enumerate(inlier_mask) if not ok]
-            if rejected_idx:
-                # 각 거부 프레임의 평균 대비 편차(mm, deg) 함께 표시
+            iter_T   = list(T_list_c)
+            iter_w   = list(weights_c)
+            iter_fid = list(used_fids_c)
+            all_rejected_details: List[str] = []
+
+            for outer_pass in range(3):
+                if len(iter_T) < 4:
+                    break
+                T_avg, inlier_mask = robust_se3_average(
+                    iter_T, k_mad=args.reject_kmad, return_inliers=True
+                )
+                rejected_idx = [i for i, ok in enumerate(inlier_mask) if not ok]
+                if not rejected_idx:
+                    break  # 수렴
+                # 한 번에 너무 많이 거부하면 데이터 손실 → 최소 4프레임 보존
+                if (len(iter_T) - len(rejected_idx)) < 4:
+                    break
+
                 R_avg = T_avg[:3, :3]
                 t_avg = T_avg[:3, 3]
-                rejected_details = []
                 for i in rejected_idx:
-                    R_i = T_list_c[i][:3, :3]
-                    t_i = T_list_c[i][:3, 3]
-                    rot_dev = rotation_angle_deg(R_i, R_avg)
-                    trans_dev_mm = float(np.linalg.norm(t_i - t_avg) * 1000.0)
-                    rejected_details.append(
-                        f"f{used_fids_c[i]}(Δt={trans_dev_mm:.1f}mm,Δr={rot_dev:.2f}°)"
+                    rot_dev = rotation_angle_deg(iter_T[i][:3, :3], R_avg)
+                    trans_dev_mm = float(np.linalg.norm(iter_T[i][:3, 3] - t_avg) * 1000.0)
+                    all_rejected_details.append(
+                        f"f{iter_fid[i]}(p{outer_pass+1},Δt={trans_dev_mm:.1f}mm,"
+                        f"Δr={rot_dev:.2f}°)"
                     )
-                print(f"[INFO] cam{ci}: auto-reject {len(rejected_idx)}개 "
-                      f"(k_mad={args.reject_kmad}) → {', '.join(rejected_details)}")
+
+                keep = [i for i in range(len(iter_T)) if i not in set(rejected_idx)]
+                iter_T   = [iter_T[i] for i in keep]
+                iter_w   = [iter_w[i] for i in keep]
+                iter_fid = [iter_fid[i] for i in keep]
+
+            # 최종 평균 (남은 inlier 만으로 한 번 더, no reject)
+            T_avg = (robust_se3_average(iter_T, k_mad=1e9)
+                     if len(iter_T) >= 3
+                     else se3_avg_weighted(iter_T, iter_w))
+
+            # 최종 풀 갱신 → 후속 상위 기여 출력에 반영
+            T_list_c    = iter_T
+            weights_c   = iter_w
+            used_fids_c = iter_fid
+
+            if all_rejected_details:
+                print(f"[INFO] cam{ci}: iterative auto-reject "
+                      f"{len(all_rejected_details)}개 (k_mad={args.reject_kmad}, "
+                      f"passes≤3) → {', '.join(all_rejected_details)}")
         else:
             T_avg = se3_avg_weighted(T_list_c, weights_c)
 

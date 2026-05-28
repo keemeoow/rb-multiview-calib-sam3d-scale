@@ -1,17 +1,25 @@
-# Step2_capture_multi_cam.py
-# 멀티캠 캡처 (Step4까지 할 거면 depth 저장 필수)
-
+# Calib_Step2_capture_multi_cam.py
 """
-[자동 캡처 모드 - SPACE 없이 조건 충족 시 자동 저장]
-  --auto_save --stable_frames 5 --cooldown_ms 1000 \
-
-python Step2_capture_multi_cam.py \
-  --root_folder ./data/cube_session_01 \
-  --intrinsics_dir ./intrinsics \
-  --fps 15 --width 640 --height 480 \
-  --min_markers 1 \
-  --show
+    멀티캠 RGB+depth 캡처 (SPACE 또는 auto_save).
+    --robot_ip 지정 시 SPACE 저장마다 robot_pose_server 로 get_pose 쿼리하여
+    joint / tcp_base_ee_4x4 / tcp_base_cube_4x4 를 meta.json 에 임베드.
+    저장 직후 notify_saved 도 전송 → 서버 터미널에 [CAPTURED] banner 출력.
 """
+# (1) 멀티캠 정적 캘리브용 (Step3, Step4 까지 진행 시):
+#     python Calib_Step2_capture_multi_cam.py \
+#       --root_folder ./data/static_cams_session_01 \
+#       --intrinsics_dir ./intrinsics \
+#       --min_markers 2 --show
+#
+# (2) Hand-to-eye 캡처용 (cube on EE, 로봇 자세별 SPACE):
+#     python Calib_Step2_capture_multi_cam.py \
+#       --root_folder ./data/handeye_session_02 \
+#       --intrinsics_dir ./intrinsics \
+#       --robot_ip 192.168.0.23 --robot_port 12348 \
+#       --min_markers 2 --show
+#
+#  (2)-1 동시에 Terminal 3에서 Calib_Step2ee_replay_joint_sequence.py 가 로봇을 자동으로
+# 각 자세로 이동시키면, 사용자는 OpenCV 창에서 SPACE 만 누르면 됨.
 
 import os
 import json
@@ -478,7 +486,34 @@ def main():
                 with open(meta_path, "w") as f:
                     json.dump(meta, f, indent=2)
 
-                print(f"[SAVE] event_id={event_id} -> meta.json updated ({len(meta['captures'])} captures)")
+                n_caps = len(meta["captures"])
+                print(f"[SAVE] event_id={event_id} -> meta.json updated ({n_caps} captures)")
+
+                # 서버 터미널에도 저장 알림 (사용자가 확인할 수 있게 prominent banner)
+                if robot_sock is not None:
+                    try:
+                        # representative rgb path (첫 cam)
+                        first_ci = sorted(frames.keys())[0] if frames else None
+                        rgb_hint = (cap_rec["cams"].get(str(first_ci), {}).get("rgb_path", "")
+                                    if first_ci is not None else "")
+                        notify = {
+                            "command": "notify_saved",
+                            "event_id": int(event_id),
+                            "n_captures": int(n_caps),
+                            "rgb_path": rgb_hint,
+                        }
+                        robot_sock.settimeout(args.robot_timeout_sec)
+                        robot_sock.sendall((json.dumps(notify) + "\n").encode("utf-8"))
+                        # 응답 비우기 (request-reply 프로토콜 동기 유지)
+                        buf = b""
+                        while b"\n" not in buf:
+                            chunk = robot_sock.recv(65536)
+                            if not chunk:
+                                break
+                            buf += chunk
+                    except Exception as e:
+                        print(f"[WARN] notify_saved 전송 실패: {e}")
+
                 event_id += 1
                 last_save_t = now_ms
 
