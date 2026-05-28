@@ -2,21 +2,12 @@
 """
 물체 RGB-D 단일 동기 프레임을 Obj_Step3_sam3d_pose.py 의 flat layout 으로 직접 저장.
 
-사용 예 (캘리브레이션 K/T 까지 한 번에 dump):
-  python src/Obj_Step2_capture_obj.py \
-    --out_dir ./capture_obj \
-    --intrinsics_dir src/Step0_calibration/intrinsics \
-    --transforms_json src/Step0_calibration/data/cube_session_01/calib_out_cube/transforms/T_C0_Ci_all.json \
-    --depth_burst_n 10 \
-    --show
-
-[새 폴더로 캡처]
-python src/Obj_Step2_capture_obj.py \
-  --out_dir ./capture_obj_set4 \
-  --intrinsics_dir src/Step0_calibration/intrinsics \
-  --transforms_json src/Step0_calibration/data/cube_session_01/calib_out_cube/transforms/T_C0_Ci_all.json \
+사용 예 (고정 카메라 3대로만 촬영 캘리브레이션 K/T 까지 한 번에 dump - base좌표계 기준):
+python Obj_Step1_capture_object.py \
+  --out_dir         data/capture_obj_set4 \
+  --intrinsics_dir  intrinsics \
+  --transforms_json data/handeye_session_01/T_R_Ci_all.json \
   --depth_burst_n 10 --show
-
 
 저장 결과 (out_dir/):
   cam{i}_rgb.png
@@ -49,9 +40,7 @@ for _p in (str(REPO_ROOT), str(THIS_DIR)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from src._camera import RealSenseCamera  # noqa: E402
-from Obj_Step1_dump_calib_to_flat import dump_calib_to_flat  # noqa: E402
-
+from _camera import RealSenseCamera  # noqa: E402
 
 def capture_depth_burst(cam, n_frames: int, max_wait_ms: int = 1500) -> Optional[np.ndarray]:
     depths = []
@@ -87,6 +76,77 @@ def load_device_map(intr_dir: Path) -> Optional[Dict[str, int]]:
     with open(map_path, "r", encoding="utf-8") as f:
         m = json.load(f)
     return m.get("serial_to_idx")
+
+
+def dump_calib_to_flat(
+    intrinsics_dir: Path,
+    transforms_json: Path,
+    out_dir: Path,
+    cam_ids,
+    use_depth_K: bool = False,
+) -> None:
+    """intrinsics/cam{i}.npz + transforms JSON →
+    out_dir/cam{i}_K.txt, cam{i}_T_cam_to_world.txt, calib_info.json.
+
+    지원하는 transforms_json:
+      (a) T_C1_Ci_all.json  → key 'T_Cref_Ci', value = flat 16 list. world = ref cam.
+      (b) T_R_Ci_all.json   → key 'T_R_Ci',    value = 4x4 nested list. world = robot base.
+    어느 쪽이든 cam{i}_T_cam_to_world.txt 한 포맷으로 dump.
+    """
+    with open(transforms_json, "r", encoding="utf-8") as f:
+        tj = json.load(f)
+    ref_idx = int(tj.get("ref_cam_idx", 0))
+    if "T_R_Ci" in tj:
+        T_map = tj["T_R_Ci"]
+        world_frame = "robot_base"
+    elif "T_Cref_Ci" in tj:
+        T_map = tj["T_Cref_Ci"]
+        world_frame = f"cam{ref_idx}"
+    elif "T_C1_Ci" in tj:
+        T_map = tj["T_C1_Ci"]
+        world_frame = f"cam{ref_idx}"
+    else:
+        raise KeyError(
+            f"{transforms_json} has none of: T_R_Ci, T_Cref_Ci, T_C1_Ci"
+        )
+
+    cam_info = []
+    for ci in cam_ids:
+        npz_path = intrinsics_dir / f"cam{ci}.npz"
+        if not npz_path.exists():
+            print(f"[WARN] {npz_path} not found, skip cam{ci}")
+            continue
+        d = np.load(npz_path, allow_pickle=True)
+        K = d["depth_K"] if use_depth_K else d["color_K"]
+        np.savetxt(out_dir / f"cam{ci}_K.txt", np.asarray(K, dtype=np.float64))
+
+        key = str(ci)
+        if key not in T_map:
+            print(f"[WARN] cam{ci} missing in transforms_json (key '{key}'), skip T")
+        else:
+            T = np.asarray(T_map[key], dtype=np.float64).reshape(4, 4)
+            if not np.allclose(T[3], [0.0, 0.0, 0.0, 1.0], atol=1e-6):
+                print(f"[WARN] cam{ci} last row != [0,0,0,1], got {T[3]}")
+            np.savetxt(out_dir / f"cam{ci}_T_cam_to_world.txt", T)
+
+        ds = float(d["depth_scale_m_per_unit"]) if "depth_scale_m_per_unit" in d.files else 0.001
+        serial = str(d["serial"]) if "serial" in d.files else ""
+        cam_info.append({
+            "cam_id": int(ci),
+            "serial": serial,
+            "depth_scale_m_per_unit": ds,
+            "K_source": "depth_K" if use_depth_K else "color_K",
+        })
+
+    info = {
+        "ref_cam_idx": ref_idx,
+        "world_frame": world_frame,
+        "transforms_json": str(transforms_json),
+        "cameras": cam_info,
+    }
+    with open(out_dir / "calib_info.json", "w", encoding="utf-8") as f:
+        json.dump(info, f, indent=2, ensure_ascii=False)
+    print(f"[INFO] dumped {len(cam_info)} cameras to {out_dir}")
 
 
 def main() -> None:

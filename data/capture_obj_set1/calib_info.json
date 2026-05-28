@@ -1,0 +1,25 @@
+{
+  "ref_cam_idx": 1,
+  "world_frame": "robot_base",
+  "transforms_json": "data/handeye_session_01/T_R_Ci_all.json",
+  "cameras": [
+    {
+      "cam_id": 0,
+      "serial": "039422061216",
+      "depth_scale_m_per_unit": 0.0010000000474974513,
+      "K_source": "color_K"
+    },
+    {
+      "cam_id": 1,
+      "serial": "314522062542",
+      "depth_scale_m_per_unit": 0.0010000000474974513,
+      "K_source": "color_K"
+    },
+    {
+      "cam_id": 2,
+      "serial": "912322060991",
+      "depth_scale_m_per_unit": 0.0010000000474974513,
+      "K_source": "color_K"
+    }
+  ]
+}
