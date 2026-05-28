@@ -85,7 +85,9 @@ TCP_AXIS_MAP = {'x': 'dx', 'y': 'dy', 'z': 'dz',
 JOINT_AXIS_MAP = {'d1': 'dj1', 'd2': 'dj2', 'd3': 'dj3',
                   'd4': 'dj4', 'd5': 'dj5', 'd6': 'dj6'}
 
-_RECV_BUF = {'data': b''}
+# Per-connection receive buffer (fileno -> bytes).
+# Multi-client 지원: 여러 클라이언트가 동시 접속해도 각자 buffer 보존.
+_RECV_BUFS = {}
 
 
 # -- Socket helpers --
@@ -95,28 +97,37 @@ def send_json(conn, obj):
         msg = json.dumps(obj)
         conn.sendall((msg + '\n').encode('utf-8'))
     except socket.error as e:
-        print 'Send error: {}'.format(e)
+        print('Send error: {}'.format(e))
 
 
 def try_recv_json(conn):
     """Non-blocking: read available bytes, return (parsed_json|None, peer_closed_bool).
-    Returns parsed_json when a full line is in buffer."""
+    Returns parsed_json when a full line is in this conn's buffer."""
+    fno = conn.fileno()
+    if fno not in _RECV_BUFS:
+        _RECV_BUFS[fno] = b''
     try:
         chunk = conn.recv(65536)
     except socket.error:
         return None, False
     if not chunk:
         return None, True
-    _RECV_BUF['data'] += chunk
-    if b'\n' not in _RECV_BUF['data']:
+    _RECV_BUFS[fno] += chunk
+    if b'\n' not in _RECV_BUFS[fno]:
         return None, False
-    line, _, rest = _RECV_BUF['data'].partition(b'\n')
-    _RECV_BUF['data'] = rest
+    line, _, rest = _RECV_BUFS[fno].partition(b'\n')
+    _RECV_BUFS[fno] = rest
     try:
         return json.loads(line.decode('utf-8').strip()), False
     except Exception as e:
-        print 'Recv parse error: {}'.format(e)
+        print('Recv parse error: {}'.format(e))
         return None, False
+
+
+def cleanup_recv_buf(conn):
+    fno = conn.fileno()
+    if fno in _RECV_BUFS:
+        del _RECV_BUFS[fno]
 
 
 # -- Robot helpers --
@@ -237,6 +248,62 @@ def handle_socket_message(conn, obj):
         except Exception as e:
             send_json(conn, {"status": "error", "reason": str(e)})
         return 'continue'
+    if cmd == 'gotoj':
+        # Calib_Step2c_replay_joint_sequence 용. joints 6-list (deg) 로 절대 joint move.
+        # 이동이 완료될 때까지 blocking — 클라이언트는 timeout 충분히 크게 (기본 30초).
+        try:
+            joints = obj.get('joints')
+            if not (isinstance(joints, (list, tuple)) and len(joints) == 6):
+                send_json(conn, {"status": "error",
+                                 "reason": "gotoj requires 'joints': [d1..d6]"})
+                return 'continue'
+            vals = [float(v) for v in joints]
+            # use_mt(True) 라도 rb.move() 자체가 motion 완료까지 block 함 (i611 SDK 동작).
+            # → 응답은 motion 끝난 뒤 전송 → 클라이언트는 단순히 wait.
+            rb.move(Joint(*vals))
+            jnt_after = get_joints()
+            send_json(conn, {
+                "status": "ok",
+                "joint_6dof": jnt_after,
+            })
+            print('[Sock] gotoj -> d=[{:.1f},{:.1f},{:.1f},{:.1f},{:.1f},{:.1f}]'.format(
+                jnt_after[0], jnt_after[1], jnt_after[2],
+                jnt_after[3], jnt_after[4], jnt_after[5]))
+        except Exception as e:
+            send_json(conn, {"status": "error", "reason": str(e)})
+        return 'continue'
+    if cmd == 'gotop':
+        # TCP absolute move. tcp 6-list [x_mm,y_mm,z_mm,rz_deg,ry_deg,rx_deg].
+        try:
+            tcp = obj.get('tcp')
+            if not (isinstance(tcp, (list, tuple)) and len(tcp) == 6):
+                send_json(conn, {"status": "error",
+                                 "reason": "gotop requires 'tcp': [x,y,z,rz,ry,rx]"})
+                return 'continue'
+            vals = [float(v) for v in tcp]
+            rb.line(Position(*vals))
+            tcp_after = get_tcp()
+            send_json(conn, {"status": "ok", "tcp_6dof": tcp_after})
+            print('[Sock] gotop -> tcp z={:.1f} (rz,ry,rx)=({:.1f},{:.1f},{:.1f})'.format(
+                tcp_after[2], tcp_after[3], tcp_after[4], tcp_after[5]))
+        except Exception as e:
+            send_json(conn, {"status": "error", "reason": str(e)})
+        return 'continue'
+    if cmd == 'notify_saved':
+        # PC (Calib_Step2) 가 meta.json 저장 직후 호출.
+        # 서버 터미널에 눈에 띄게 표시해 사용자가 확인 가능.
+        eid = obj.get('event_id', '?')
+        n_total = obj.get('n_captures', '?')
+        rgb_path = obj.get('rgb_path', '')
+        print('')
+        print('==================================================')
+        print('  [CAPTURED] event_id={} saved (total={})'.format(eid, n_total))
+        if rgb_path:
+            print('  rgb: {}'.format(rgb_path))
+        print('==================================================')
+        sys.stdout.write('> '); sys.stdout.flush()
+        send_json(conn, {"status": "ok"})
+        return 'continue'
     if cmd == 'quit':
         send_json(conn, {"status": "ok"})
         return 'disconnect'
@@ -305,7 +372,7 @@ def handle_stdin(cmd):
 def main():
     rbs = None
     srv = None
-    conn = None
+    conns = []  # multi-client connection list (filled in main loop)
     try:
         rbs = RobSys()
         rbs.open()
@@ -330,7 +397,7 @@ def main():
         srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         srv.bind((HOST, PORT))
-        srv.listen(1)
+        srv.listen(8)  # multi-client backlog
         srv.setblocking(False)
 
         print ''
@@ -345,11 +412,13 @@ def main():
         show_pose()
         sys.stdout.write('> '); sys.stdout.flush()
 
+        # Multi-client: 여러 클라이언트가 동시 접속 가능
+        # (stepper + Calib_Step2 가 동시에 server 와 통신).
+        # conns 리스트는 main() 진입부에서 이미 초기화됨.
+
         running = True
         while running:
-            rlist = [sys.stdin, srv]
-            if conn is not None:
-                rlist.append(conn)
+            rlist = [sys.stdin, srv] + conns
             try:
                 ready, _, _ = select.select(rlist, [], [], 0.2)
             except select.error:
@@ -359,30 +428,31 @@ def main():
                 try:
                     new_conn, addr = srv.accept()
                     new_conn.setblocking(False)
-                    print '\n[Sock] client connected: {}'.format(addr)
-                    if conn is not None:
-                        try: conn.close()
-                        except Exception: pass
-                    conn = new_conn
-                    _RECV_BUF['data'] = b''
+                    conns.append(new_conn)
+                    print('\n[Sock] client connected: {} (total={})'.format(addr, len(conns)))
                     sys.stdout.write('> '); sys.stdout.flush()
                 except socket.error as e:
-                    print '[Sock] accept error: {}'.format(e)
+                    print('[Sock] accept error: {}'.format(e))
 
-            if conn is not None and conn in ready:
-                obj, peer_closed = try_recv_json(conn)
+            # 각 연결 독립 처리
+            for c in list(conns):
+                if c not in ready:
+                    continue
+                obj, peer_closed = try_recv_json(c)
                 if peer_closed:
-                    print '\n[Sock] client disconnected'
-                    try: conn.close()
+                    print('\n[Sock] client disconnected (remaining={})'.format(len(conns) - 1))
+                    conns.remove(c)
+                    cleanup_recv_buf(c)
+                    try: c.close()
                     except Exception: pass
-                    conn = None
                     sys.stdout.write('> '); sys.stdout.flush()
                 elif obj is not None:
-                    action = handle_socket_message(conn, obj)
+                    action = handle_socket_message(c, obj)
                     if action == 'disconnect':
-                        try: conn.close()
+                        conns.remove(c)
+                        cleanup_recv_buf(c)
+                        try: c.close()
                         except Exception: pass
-                        conn = None
 
             if sys.stdin in ready:
                 try:
@@ -411,9 +481,9 @@ def main():
     except Exception as e:
         print(e)
     finally:
-        try:
-            if conn is not None: conn.close()
-        except Exception: pass
+        for c in conns:
+            try: c.close()
+            except Exception: pass
         try:
             if srv is not None: srv.close()
         except Exception: pass
