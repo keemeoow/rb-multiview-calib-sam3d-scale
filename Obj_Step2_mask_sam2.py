@@ -6,8 +6,8 @@ SAM 2 기반 multi-cam mask 생성 (카메라별 × 물체별 직접 클릭).
 conda activate sam2env
 cd /home/sprout/Desktop/**jiwoo/rb-multiview-calib-sam3d-scale
 
-SET="data/capture_obj_set4"
-MASKS="data/masks_set4"
+SET="data/capture_obj_set8"
+MASKS="data/masks_set8"
 
 PYTHONWARNINGS=ignore /home/sprout/anaconda3/envs/sam2env/bin/python3 \
   Obj_Step2_mask_sam2.py \
