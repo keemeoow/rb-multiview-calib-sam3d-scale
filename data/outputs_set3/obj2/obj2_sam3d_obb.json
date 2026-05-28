@@ -1,0 +1,44 @@
+{
+  "scale_per_axis": [
+    0.05233608087152935,
+    0.04340429553522095,
+    0.013987792107436853
+  ],
+  "mesh_extents_before_mm": [
+    658.61,
+    1000.15,
+    639.05
+  ],
+  "mesh_extents_after_mm": [
+    34.46883466502802,
+    43.410765866361324,
+    8.938844449374383
+  ],
+  "source_mesh": "data/outputs_set3/obj2/obj2_sam3d.glb",
+  "target_obb_extents_mm_desc": [
+    43.410765866361324,
+    34.46883466502802,
+    8.938844449374383
+  ],
+  "centered_at_origin": true,
+  "mask_validation": {
+    "min_cams": 2,
+    "cams_used": [
+      "cam0",
+      "cam1",
+      "cam2"
+    ],
+    "hist_inside_count": {
+      "0": 0,
+      "1": 99,
+      "2": 427,
+      "3": 0
+    },
+    "fallback_used": false,
+    "old_obb_extents_mm_desc": [
+      43.358684864933466,
+      29.432843002488926,
+      10.149907603556812
+    ]
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "obj1": {
+    "obj_tag": "obj1",
+    "scaled_glb": "data/outputs_set1/obj1/obj1_scaled.glb",
+    "scale": 0.11430607721134398,
+    "scale_report": "data/outputs_set1/obj1/obj1_scale_report.json",
+    "cloud_clean_ply": "data/outputs_set1/obj1/obj1_cloud_clean.ply",
+    "sam3d_mesh": "data/outputs_set1/obj1/obj1_sam3d.glb",
+    "sam3d_cam": "cam1",
+    "bbox_extents_m": [
+      0.14748587395367824,
+      0.0837002246039273,
+      0.08268390838316785
+    ],
+    "center_world_m": [
+      -0.03383732649556954,
+      0.49622129085112204,
+      0.014396962436204891
+    ]
+  },
+  "obj2": {
+    "obj_tag": "obj2",
+    "scaled_glb": "data/outputs_set1/obj2/obj2_scaled.glb",
+    "scale": 0.1166271714,
+    "scale_report": "data/outputs_set1/obj2/obj2_scale_report.json",
+    "cloud_clean_ply": "data/outputs_set1/obj2/obj2_cloud_clean.ply",
+    "sam3d_mesh": "data/outputs_set1/obj2/obj2_sam3d.glb",
+    "sam3d_cam": "cam1",
+    "bbox_extents_m": [
+      0.09028273615494828,
+      0.032675788951316315,
+      0.004521949297881821
+    ],
+    "center_world_m": [
+      -0.13952781960442132,
+      0.3484962899719755,
+      0.0290442692012209
+    ]
+  }
+}
