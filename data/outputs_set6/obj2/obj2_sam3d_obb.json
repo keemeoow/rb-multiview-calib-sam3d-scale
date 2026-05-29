@@ -6,24 +6,24 @@
     926.97
   ],
   "target_obb_extents_mm_desc": [
-    35.72,
-    27.67,
-    21.16
+    31.04,
+    25.46,
+    24.19
   ],
   "scale_per_axis": [
-    0.029500697480487545,
-    0.036150201511807666,
-    0.022826369579282125
+    0.02714529068768807,
+    0.031415754426032935,
+    0.026092110203277487
   ],
   "mesh_extents_after_mm": [
-    27.67,
-    35.72,
-    21.16
+    25.46,
+    31.04,
+    24.19
   ],
   "centered_at_origin": true,
   "source_cloud": "data/outputs_set6/obj2/obj2_cloud_clean.ply",
-  "cloud_points_used": 446,
   "mask_validation": {
-    "applied": false
+    "method": "pure cloud",
+    "table_aware": true
   }
 }

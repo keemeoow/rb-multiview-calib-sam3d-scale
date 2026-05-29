@@ -6,27 +6,24 @@
     470.45
   ],
   "target_obb_extents_mm_desc": [
-    57.82,
-    52.96,
-    39.36
+    51.43,
+    49.2,
+    32.99
   ],
   "scale_per_axis": [
-    0.11601114873674667,
-    0.11238621790698271,
-    0.08366997910737778
+    0.10319253719490419,
+    0.10440321600951845,
+    0.07012890964703522
   ],
   "mesh_extents_after_mm": [
-    57.82,
-    52.96,
-    39.36
+    51.43,
+    49.2,
+    32.99
   ],
   "centered_at_origin": true,
   "source_cloud": "data/outputs_set7/obj1/obj1_cloud_clean.ply",
   "mask_validation": {
-    "applied": true,
-    "method": "sphere r=30mm @ median point",
-    "n_original": 2699,
-    "n_kept": 1187,
-    "fallback": false
+    "method": "sphere r=30mm",
+    "table_aware": true
   }
 }

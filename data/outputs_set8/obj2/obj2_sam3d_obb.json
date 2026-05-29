@@ -7,23 +7,24 @@
   ],
   "target_obb_extents_mm_desc": [
     150.0,
-    17.1,
-    8.0
+    17.63,
+    7.25
   ],
   "scale_per_axis": [
-    0.11749779195301192,
-    0.06706185762337602,
+    0.1211817058349972,
+    0.06080740271875301,
     0.14994627672020405
   ],
   "mesh_extents_after_mm": [
-    17.1,
-    8.0,
+    17.63,
+    7.25,
     150.0
   ],
   "centered_at_origin": true,
   "source_cloud": "data/outputs_set8/obj2/obj2_cloud_clean.ply",
   "mask_validation": {
-    "applied": false,
-    "note": "OBB longest axis extended from 132mm to 150mm"
+    "method": "pure cloud + manual longest=150mm",
+    "table_aware": true,
+    "manual_extend_longest_mm": 150
   }
 }
