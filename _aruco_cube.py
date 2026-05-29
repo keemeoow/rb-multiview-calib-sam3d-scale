@@ -138,25 +138,114 @@ class ArucoCubeModel:
 # Target
 # -------------------------
 class ArucoCubeTarget:
-    def __init__(self, cfg: CubeConfig):
+    def __init__(self, cfg: CubeConfig,
+                 use_clahe: bool = False,
+                 use_board_refine: bool = True,
+                 use_pyramid_fallback: bool = True):
+        """
+        검출 robustness 옵션 (모두 안전 default — 깨끗한 데이터에서 회귀 없음):
+          use_clahe            : 조명/그림자 편차 큰 경우만 True (clean 데이터에선 노이즈↑)
+          use_board_refine     : 큐브 5면 Board geometry로 누락 마커 복구
+          use_pyramid_fallback : 1차 0개 검출 케이스만 0.5x로 재시도
+        """
         self.cfg = cfg
         self.model = ArucoCubeModel(cfg)
+        self.use_clahe = use_clahe
+        self.use_board_refine = use_board_refine
+        self.use_pyramid_fallback = use_pyramid_fallback
 
         d = getattr(cv2.aruco, cfg.dictionary_name)
         self.dictionary = cv2.aruco.getPredefinedDictionary(d)
-        self.params = cv2.aruco.DetectorParameters()
-        # Sub-pixel corner refinement (APRILTAG > SUBPIX > CONTOUR > NONE).
-        # 코너 정확도 ~0.4px → ~0.15px 수준으로 좁혀 triangulation 잔차를 직접 낮춤.
-        self.params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_APRILTAG
+
+        # ---- DetectorParameters: 검증된 default + APRILTAG corner refine ---- #
+        # default 값들은 OpenCV가 광범위한 데이터로 튜닝한 것이라 함부로 바꾸면 회귀.
+        # 안전한 항목만 조정.
+        p = cv2.aruco.DetectorParameters()
+        p.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_APRILTAG
+        # 작은/먼 마커 검출 하한 완화 (회귀 위험 낮음)
+        p.minMarkerPerimeterRate = 0.02   # default 0.03
+
+        self.params = p
         self.detector = cv2.aruco.ArucoDetector(self.dictionary, self.params)
 
-    def detect(self, bgr) -> Tuple[List[np.ndarray], Optional[np.ndarray]]:
-        """Return (corners_list, ids_flat or None)"""
+        # ---- CLAHE (조명 편차 대응, opt-in) ---- #
+        self._clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+
+        # ---- Board: 큐브 5면 → refineDetectedMarkers용 ---- #
+        board_obj_pts = []
+        board_ids = []
+        for mid in cfg.marker_ids:
+            if mid not in cfg.id_to_face:
+                continue
+            corners3d = self.model.marker_corners_in_rig(int(mid))  # (4,3)
+            board_obj_pts.append(corners3d.astype(np.float32))
+            board_ids.append(int(mid))
+        if board_obj_pts:
+            try:
+                self.board = cv2.aruco.Board(
+                    objPoints=board_obj_pts,
+                    dictionary=self.dictionary,
+                    ids=np.asarray(board_ids, dtype=np.int32),
+                )
+            except Exception:
+                self.board = None
+        else:
+            self.board = None
+
+    def _preprocess(self, bgr):
         gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
-        corners, ids, _ = self.detector.detectMarkers(gray)
-        if ids is None:
+        if self.use_clahe:
+            gray = self._clahe.apply(gray)
+        return gray
+
+    def _detect_on_gray(self, gray):
+        return self.detector.detectMarkers(gray)
+
+    def detect(self, bgr) -> Tuple[List[np.ndarray], Optional[np.ndarray]]:
+        """Return (corners_list, ids_flat or None)
+
+        Strategy:
+          1) (CLAHE optional) → detectMarkers
+          2) Board refine: 거부된 후보 중 큐브 기하와 맞는 것만 복구
+          3) 1차 0개 검출일 때만 0.5x pyramid 재시도
+        """
+        gray = self._preprocess(bgr)
+
+        corners, ids, rejected = self._detect_on_gray(gray)
+        n_before = 0 if ids is None else len(ids)
+
+        # ----- Board refine: rejected 후보에서만 복구 (이미 검출된 건 그대로) ----- #
+        # refineDetectedMarkers는 이미 검출된 마커는 보존하고, rejected에서
+        # board geometry에 일치하는 것만 추가/회복함.
+        if (self.use_board_refine and self.board is not None
+                and ids is not None and len(ids) >= 1
+                and rejected is not None and len(rejected) >= 1):
+            try:
+                corners2, ids2, _ = cv2.aruco.refineDetectedMarkers(
+                    image=gray,
+                    board=self.board,
+                    detectedCorners=list(corners),
+                    detectedIds=ids,
+                    rejectedCorners=list(rejected),
+                    parameters=self.params,
+                )
+                if (corners2 is not None and ids2 is not None
+                        and len(ids2) > n_before):
+                    corners, ids = corners2, ids2
+            except Exception:
+                pass
+
+        # ----- Pyramid fallback (검출 0개일 때만) ----- #
+        if (ids is None or len(ids) == 0) and self.use_pyramid_fallback:
+            small = cv2.pyrDown(gray)
+            c_s, ids_s, _ = self._detect_on_gray(small)
+            if ids_s is not None and len(ids_s) > 0:
+                corners = tuple(c.astype(np.float32) * 2.0 for c in c_s)
+                ids = ids_s
+
+        if ids is None or len(ids) == 0:
             return [], None
-        return corners, ids.flatten().astype(int)
+        return list(corners), ids.flatten().astype(int)
 
     # 공개 wrapper (Step3 overlay, 디버그에서 쓰기 위함)
     def build_correspondences(
@@ -203,20 +292,32 @@ class ArucoCubeTarget:
         n = int(obj_pts.shape[0])
 
         if n >= 8:
-            # 마커 2개 이상: ITERATIVE (모호성 없음)
-            flags = cv2.SOLVEPNP_ITERATIVE
+            # 마커 2개 이상: SQPNP (globally optimal) → LM refine
+            # 모호성 없음. ITERATIVE 대비 노이즈에 더 robust.
             if use_ransac:
+                # RANSAC outlier 거부는 ITERATIVE로 (SQPNP는 RANSAC 미지원 빌드 있음)
                 ok, rvec, tvec, _ = cv2.solvePnPRansac(
                     obj_pts, img_pts, K, D,
-                    flags=flags,
+                    flags=cv2.SOLVEPNP_ITERATIVE,
                     reprojectionError=5.0,
                     iterationsCount=200,
                     confidence=0.999
                 )
             else:
-                ok, rvec, tvec = cv2.solvePnP(obj_pts, img_pts, K, D, flags=flags)
+                ok, rvec, tvec = cv2.solvePnP(
+                    obj_pts, img_pts, K, D, flags=cv2.SOLVEPNP_SQPNP
+                )
             if not ok:
                 return None
+            # LM 비선형 정제 (모든 경로 공통 — sub-pixel 잔차로 수렴)
+            try:
+                rvec, tvec = cv2.solvePnPRefineLM(
+                    obj_pts, img_pts, K, D, rvec, tvec,
+                    criteria=(cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER,
+                              50, 1e-7),
+                )
+            except cv2.error:
+                pass
         else:
             # 마커 1개(4점): IPPE가 복수 해를 반환하므로 물리 조건으로 해 선택
             # - z>0 (큐브 원점이 카메라 앞)
@@ -238,7 +339,7 @@ class ArucoCubeTarget:
                 ).astype(np.float64)
                 err_mean = float(np.mean(err)) if err.size else float("inf")
 
-                z_ok = float(tv[2]) > 0.0
+                z_ok = float(tv[2, 0]) > 0.0
                 vis_ok = False
                 vis_score = -1e12
 

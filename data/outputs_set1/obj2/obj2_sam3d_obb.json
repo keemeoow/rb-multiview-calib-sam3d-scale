@@ -1,0 +1,29 @@
+{
+  "source_mesh": "data/outputs_set1/obj2/obj2_sam3d.glb",
+  "mesh_extents_before_mm": [
+    399.9,
+    1000.09,
+    227.34
+  ],
+  "target_obb_extents_mm_desc": [
+    90.28,
+    32.68,
+    4.52
+  ],
+  "scale_per_axis": [
+    0.08170981981933689,
+    0.09027500931198625,
+    0.019890782018109746
+  ],
+  "mesh_extents_after_mm": [
+    32.68,
+    90.28,
+    4.52
+  ],
+  "centered_at_origin": true,
+  "source_cloud": "data/outputs_set1/obj2/obj2_cloud_clean.ply",
+  "cloud_points_used": 1022,
+  "mask_validation": {
+    "applied": false
+  }
+}
