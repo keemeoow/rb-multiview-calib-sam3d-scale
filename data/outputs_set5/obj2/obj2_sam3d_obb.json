@@ -1,0 +1,33 @@
+{
+  "source_mesh": "data/outputs_set5/obj2/obj2_sam3d.glb",
+  "mesh_extents_before_mm": [
+    999.14,
+    200.08,
+    383.14
+  ],
+  "target_obb_extents_mm_desc": [
+    98.95,
+    39.62,
+    14.82
+  ],
+  "scale_per_axis": [
+    0.09903248904750356,
+    0.07406006106305128,
+    0.10339625576001685
+  ],
+  "mesh_extents_after_mm": [
+    98.95,
+    14.82,
+    39.62
+  ],
+  "centered_at_origin": true,
+  "source_cloud": "data/outputs_set5/obj2/obj2_cloud_clean.ply",
+  "mask_validation": {
+    "applied": true,
+    "method": "percentile clip 5-95%",
+    "n_original": 1389,
+    "n_kept": 1061,
+    "fallback": false,
+    "note": "user target ~95mm; pct_clip 5-95 gives 99mm"
+  }
+}

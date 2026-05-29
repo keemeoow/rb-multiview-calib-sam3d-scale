@@ -1,0 +1,32 @@
+{
+  "source_mesh": "data/outputs_set7/obj1/obj1_sam3d.glb",
+  "mesh_extents_before_mm": [
+    498.37,
+    471.28,
+    470.45
+  ],
+  "target_obb_extents_mm_desc": [
+    57.82,
+    52.96,
+    39.36
+  ],
+  "scale_per_axis": [
+    0.11601114873674667,
+    0.11238621790698271,
+    0.08366997910737778
+  ],
+  "mesh_extents_after_mm": [
+    57.82,
+    52.96,
+    39.36
+  ],
+  "centered_at_origin": true,
+  "source_cloud": "data/outputs_set7/obj1/obj1_cloud_clean.ply",
+  "mask_validation": {
+    "applied": true,
+    "method": "sphere r=30mm @ median point",
+    "n_original": 2699,
+    "n_kept": 1187,
+    "fallback": false
+  }
+}

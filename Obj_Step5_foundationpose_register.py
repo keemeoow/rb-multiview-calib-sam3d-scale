@@ -171,11 +171,71 @@ def run_register(est, K: np.ndarray, rgb: np.ndarray, depth_m: np.ndarray,
 
 
 # ---------------------------------------------------------------- #
+# Post-FP Y-up (vertical axis) enforcement
+# ---------------------------------------------------------------- #
+
+def enforce_axis_up(T_cam_obj: np.ndarray, T_R_cam: np.ndarray | None) -> tuple[np.ndarray, dict]:
+    """
+    FP 가 추정한 pose 에서 mesh local 축 중 **가장 수직 (world Z 와 정렬도 최대)** 인 축이
+    world +Z 방향을 향하도록 강제. mesh 축은 SAM3D 출력 + rank-매칭으로 임의 방향이라,
+    대칭 객체에서 FP 가 위/아래 180° 모호한 pose 를 잡으면 사용자 시각으로는 '뒤집힌' 결과.
+
+    동작:
+      1. T_R_obj = T_R_cam @ T_cam_obj 계산
+      2. mesh local axis k 의 world 방향 = R[:, k]; |R[2, k]| 최대인 k 가 수직 축
+      3. R[2, k] < 0 (수직 축이 world -Z) 이면 → pose 180° 회전으로 뒤집어 +Z 로
+         (회전축: 수직 축이 아닌 mesh 로컬 축 중 하나)
+      4. 보정된 T_cam_obj 와 어느 축이 수직인지 (overlay 색깔용) 반환
+    """
+    info = {"applied": False, "vertical_axis_idx": None}
+    if T_R_cam is None:
+        info["reason"] = "no T_R_cam provided"
+        return T_cam_obj, info
+
+    T_R_obj = T_R_cam @ T_cam_obj
+    R = T_R_obj[:3, :3]
+    z_components = R[2, :]  # mesh +X, +Y, +Z 각각의 world Z 성분
+    k_vert = int(np.argmax(np.abs(z_components)))
+    z_dot = float(z_components[k_vert])
+    axis_names = {0: "X", 1: "Y", 2: "Z"}
+    info["vertical_axis_idx"] = k_vert
+    info["vertical_axis_name"] = axis_names[k_vert]
+    info["vertical_axis_world_z"] = z_dot
+
+    if z_dot >= 0:
+        info["reason"] = "vertical axis already points up"
+        return T_cam_obj, info
+
+    # 뒤집기: 수직 축이 아닌 어느 한 축을 중심으로 180° 회전 → 수직 축 부호 반전
+    axis_to_rotate = (k_vert + 1) % 3
+    R_flip = np.eye(3)
+    for i in range(3):
+        if i != axis_to_rotate:
+            R_flip[i, i] = -1.0
+    T_flip = np.eye(4)
+    T_flip[:3, :3] = R_flip
+    T_cam_obj_new = T_cam_obj @ T_flip
+
+    R_new = (T_R_cam @ T_cam_obj_new)[:3, :3]
+    info["applied"] = True
+    info["rotation_axis_name"] = axis_names[axis_to_rotate]
+    info["new_vertical_axis_world_z"] = float(R_new[2, k_vert])
+    return T_cam_obj_new, info
+
+
+# ---------------------------------------------------------------- #
 # Overlay viz (FP 결과 sanity check)
 # ---------------------------------------------------------------- #
 
-def draw_axes(img: np.ndarray, K: np.ndarray, T_cam_obj: np.ndarray, axis_len_m: float = 0.05) -> np.ndarray:
-    """object 좌표 원점 + XYZ 축을 cam 이미지에 투영."""
+def draw_axes(
+    img: np.ndarray, K: np.ndarray, T_cam_obj: np.ndarray,
+    axis_len_m: float = 0.03, vertical_axis_idx: int | None = None,
+) -> np.ndarray:
+    """object 좌표 원점 + XYZ 축을 cam 이미지에 투영.
+
+    vertical_axis_idx 가 주어지면 그 축을 muted GREEN 으로 (= 사용자 컨벤션: green=up).
+    채도 낮은 색깔 + 굵고 짧은 선.
+    """
     pts3d = np.array([
         [0, 0, 0],
         [axis_len_m, 0, 0],
@@ -192,15 +252,32 @@ def draw_axes(img: np.ndarray, K: np.ndarray, T_cam_obj: np.ndarray, axis_len_m:
     uv = uv.astype(int)
     out = img.copy()
     o = tuple(uv[0])
-    cv2.line(out, o, tuple(uv[1]), (0, 0, 255), 2)  # X red
-    cv2.line(out, o, tuple(uv[2]), (0, 255, 0), 2)  # Y green
-    cv2.line(out, o, tuple(uv[3]), (255, 0, 0), 2)  # Z blue
-    cv2.circle(out, o, 4, (255, 255, 255), -1)
+
+    # 진한 (saturated) 색 — RGB 입력
+    BOLD_GREEN = (80, 200, 80)    # 수직 (up) - vivid green
+    BOLD_BLUE  = (50, 110, 230)   # 다른 horizontal 1 - vivid blue
+    BOLD_RED   = (230, 60, 60)    # 다른 horizontal 2 - vivid red
+
+    if vertical_axis_idx is not None:
+        colors = [BOLD_RED, BOLD_RED, BOLD_RED]
+        colors[vertical_axis_idx] = BOLD_GREEN
+        other = [i for i in range(3) if i != vertical_axis_idx]
+        colors[other[0]] = BOLD_BLUE
+        colors[other[1]] = BOLD_RED
+    else:
+        colors = [BOLD_BLUE, BOLD_GREEN, BOLD_RED]  # X / Y / Z
+
+    THICK = 5
+    for k in range(3):
+        cv2.line(out, o, tuple(uv[k + 1]), colors[k], THICK, lineType=cv2.LINE_AA)
+    cv2.circle(out, o, 5, (245, 245, 245), -1, lineType=cv2.LINE_AA)
+    cv2.circle(out, o, 5, (40, 40, 40), 1, lineType=cv2.LINE_AA)
     return out
 
 
 def draw_mesh_silhouette(img_rgb: np.ndarray, K: np.ndarray, T_cam_obj: np.ndarray,
                           mesh: trimesh.Trimesh) -> np.ndarray:
+    """mesh silhouette 를 쨍한 민트초록 (vivid mint) 톤으로 알파블렌딩."""
     H, W = img_rgb.shape[:2]
     V = np.asarray(mesh.vertices)
     F = np.asarray(mesh.faces, dtype=np.int32)
@@ -216,7 +293,12 @@ def draw_mesh_silhouette(img_rgb: np.ndarray, K: np.ndarray, T_cam_obj: np.ndarr
     for tri in F:
         cv2.fillConvexPoly(silh, pts2d[tri], 255)
     overlay = img_rgb.copy()
-    overlay[silh > 0] = (0.5 * overlay[silh > 0] + 0.5 * np.array([0, 255, 0])).astype(np.uint8)
+    # 쨍한 민트초록 (RGB): vivid mint green
+    TINT = np.array([90, 255, 170], dtype=np.float32)  # RGB
+    ALPHA = 0.55
+    if (silh > 0).any():
+        region = overlay[silh > 0].astype(np.float32)
+        overlay[silh > 0] = ((1.0 - ALPHA) * region + ALPHA * TINT).astype(np.uint8)
     return overlay
 
 
@@ -247,6 +329,10 @@ def parse_args():
                     help="depth PNG 값 -> meter 변환 계수 (default: 1/1000 = mm).")
     ap.add_argument("--mesh_max_off_m", type=float, default=0.01,
                     help="mesh AABB 중심이 원점에서 떨어진 최대 허용 거리(m).")
+    ap.add_argument("--no_yup", action="store_true",
+                    help="post-FP Y-up (vertical axis) 강제 보정 비활성. "
+                         "기본은 활성 — mesh local 축 중 수직 정렬도가 가장 큰 축이 "
+                         "world +Z 를 향하도록 180° flip 적용, overlay 에서 그 축을 GREEN 으로.")
     return ap.parse_args()
 
 
@@ -283,7 +369,34 @@ def main():
     print(f"[FP] register iter={args.iter}, image={rgb.shape}, depth>0={int((depth_m>0).sum())} px, "
           f"mask={int(mask.sum())} px")
 
-    T_C0_obj = run_register(est, K, rgb, depth_m, mask, n_iter=args.iter)
+    T_C0_obj_raw = run_register(est, K, rgb, depth_m, mask, n_iter=args.iter)
+
+    print("[FP] T_C0_obj (raw) =")
+    print(T_C0_obj_raw)
+
+    # --- T_R_C0 (handeye) 먼저 로드: Y-up 보정에 필요 ---
+    T_R_C0 = None
+    if args.t_r_c0 is not None:
+        if not args.t_r_c0.exists():
+            print(f"[WARN] T_R_C0 file missing: {args.t_r_c0} — base 합성 / Y-up 비활성.")
+        else:
+            with args.t_r_c0.open() as f:
+                tcal = json.load(f)
+            T_R_C0 = np.array(tcal["transformation_matrix_camera_to_robot"], dtype=np.float64).reshape(4, 4)
+
+    # --- post-FP Y-up (vertical axis) 강제 보정 ---
+    yup_info = {"applied": False, "vertical_axis_idx": None}
+    if not args.no_yup:
+        T_C0_obj, yup_info = enforce_axis_up(T_C0_obj_raw, T_R_C0)
+        if yup_info["applied"]:
+            print(f"[Y-up] mesh local +{yup_info['vertical_axis_name']} 가 world -Z 방향 "
+                  f"(z={yup_info['vertical_axis_world_z']:.3f}) → "
+                  f"+{yup_info['rotation_axis_name']} 축 중심 180° flip 적용. "
+                  f"now z={yup_info['new_vertical_axis_world_z']:.3f}")
+        else:
+            print(f"[Y-up] no flip needed ({yup_info.get('reason', '?')})")
+    else:
+        T_C0_obj = T_C0_obj_raw
 
     out = {
         "input": {
@@ -296,38 +409,42 @@ def main():
         "cam_id": args.cam,
         "iterations": int(args.iter),
         "mesh_check": canon_info,
+        "T_cam_obj_raw_4x4": T_C0_obj_raw.tolist(),
         "T_cam_obj_4x4": T_C0_obj.tolist(),
+        "yup_correction": yup_info,
     }
 
-    print("[FP] T_C0_obj =")
+    if not yup_info["applied"]:
+        # 동일하면 raw key 제거해 출력 간소화
+        out.pop("T_cam_obj_raw_4x4", None)
+
+    print("[FP] T_C0_obj (final) =")
     print(T_C0_obj)
 
     # --- 합성: T_R_obj = T_R_C0 @ T_C0_obj ---
-    if args.t_r_c0 is not None:
-        if not args.t_r_c0.exists():
-            print(f"[WARN] T_R_C0 file missing: {args.t_r_c0} — base 좌표 합성 skip.")
-        else:
-            with args.t_r_c0.open() as f:
-                tcal = json.load(f)
-            T_R_C0 = np.array(tcal["transformation_matrix_camera_to_robot"], dtype=np.float64).reshape(4, 4)
-            T_R_obj = T_R_C0 @ T_C0_obj
-            out["T_R_C0_4x4"] = T_R_C0.tolist()
-            out["T_R_obj_4x4"] = T_R_obj.tolist()
-            print("[FP] T_R_obj =")
-            print(T_R_obj)
-            (args.out_dir / "T_R_obj.json").write_text(
-                json.dumps({"T_R_obj_4x4": T_R_obj.tolist(),
-                            "translation_m": T_R_obj[:3, 3].tolist(),
-                            "rotation_3x3": T_R_obj[:3, :3].tolist()},
-                           indent=2)
-            )
+    if T_R_C0 is not None:
+        T_R_obj = T_R_C0 @ T_C0_obj
+        out["T_R_C0_4x4"] = T_R_C0.tolist()
+        out["T_R_obj_4x4"] = T_R_obj.tolist()
+        print("[FP] T_R_obj =")
+        print(T_R_obj)
+        (args.out_dir / "T_R_obj.json").write_text(
+            json.dumps({"T_R_obj_4x4": T_R_obj.tolist(),
+                        "translation_m": T_R_obj[:3, 3].tolist(),
+                        "rotation_3x3": T_R_obj[:3, :3].tolist(),
+                        "yup_correction": yup_info},
+                       indent=2)
+        )
 
     (args.out_dir / "T_C0_obj.json").write_text(json.dumps(out, indent=2))
 
     # --- overlay viz ---
     try:
         overlay = draw_mesh_silhouette(rgb, K, T_C0_obj, mesh)
-        overlay = draw_axes(overlay, K, T_C0_obj, axis_len_m=0.05)
+        overlay = draw_axes(
+            overlay, K, T_C0_obj, axis_len_m=0.03,
+            vertical_axis_idx=yup_info.get("vertical_axis_idx"),
+        )
         cv2.imwrite(str(args.out_dir / "overlay.png"),
                     cv2.cvtColor(overlay, cv2.COLOR_RGB2BGR))
         print(f"[FP] overlay saved: {args.out_dir / 'overlay.png'}")

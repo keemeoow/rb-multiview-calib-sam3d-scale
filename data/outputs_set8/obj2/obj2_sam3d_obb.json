@@ -1,0 +1,29 @@
+{
+  "source_mesh": "data/outputs_set8/obj2/obj2_sam3d.glb",
+  "mesh_extents_before_mm": [
+    145.52,
+    119.27,
+    1000.36
+  ],
+  "target_obb_extents_mm_desc": [
+    150.0,
+    17.1,
+    8.0
+  ],
+  "scale_per_axis": [
+    0.11749779195301192,
+    0.06706185762337602,
+    0.14994627672020405
+  ],
+  "mesh_extents_after_mm": [
+    17.1,
+    8.0,
+    150.0
+  ],
+  "centered_at_origin": true,
+  "source_cloud": "data/outputs_set8/obj2/obj2_cloud_clean.ply",
+  "mask_validation": {
+    "applied": false,
+    "note": "OBB longest axis extended from 132mm to 150mm"
+  }
+}

@@ -15,9 +15,9 @@ source sam3d_env_gb10.sh && PYTHONWARNINGS=ignore python3 Obj_Step3_sam3d_pose.p
 
 # SAM3D GLB + 멀티뷰 포인트 클라우드로 scale 정합까지
 source sam3d_env_gb10.sh && PYTHONWARNINGS=ignore python3 Obj_Step3_sam3d_pose.py \
-  --data_dir "data/capture_obj_set1" \
-  --mask_dir "data/masks_set1" \
-  --out_dir  "data/outputs_set1" \
+  --data_dir "data/capture_obj_set8" \
+  --mask_dir "data/masks_set8" \
+  --out_dir  "data/outputs_set8" \
   --depth_scale 0.001 \
   --mask_close_px 5 --mask_erode_px 3 \
   --keep_largest_cc \

@@ -1,44 +1,29 @@
 {
-  "scale_per_axis": [
-    0.1408264188358944,
-    0.11868173069328423,
-    0.10869165106735092
-  ],
+  "source_mesh": "data/outputs_set3/obj1/obj1_sam3d.glb",
   "mesh_extents_before_mm": [
     498.93,
     469.81,
     461.08
   ],
-  "mesh_extents_after_mm": [
-    70.26274440808841,
-    55.75840081963292,
-    50.11563067373886
-  ],
-  "source_mesh": "data/outputs_set3/obj1/obj1_sam3d.glb",
   "target_obb_extents_mm_desc": [
-    70.26274440808841,
-    55.75840081963292,
-    50.11563067373886
+    99.71,
+    72.39,
+    65.88
+  ],
+  "scale_per_axis": [
+    0.19985546978087898,
+    0.15408160996560127,
+    0.14287999274940322
+  ],
+  "mesh_extents_after_mm": [
+    99.71,
+    72.39,
+    65.88
   ],
   "centered_at_origin": true,
+  "source_cloud": "data/outputs_set3/obj1/obj1_cloud_clean.ply",
+  "cloud_points_used": 3547,
   "mask_validation": {
-    "min_cams": 2,
-    "cams_used": [
-      "cam0",
-      "cam1",
-      "cam2"
-    ],
-    "hist_inside_count": {
-      "0": 0,
-      "1": 1563,
-      "2": 1984,
-      "3": 0
-    },
-    "fallback_used": false,
-    "old_obb_extents_mm_desc": [
-      99.7142007007648,
-      72.38977825154427,
-      65.87921774100711
-    ]
+    "applied": false
   }
 }

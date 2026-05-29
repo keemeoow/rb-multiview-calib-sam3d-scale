@@ -1,0 +1,96 @@
+{
+  "image": "data/outputs_set5/obj1/obj1_cam1_rgb.png",
+  "mask": "data/outputs_set5/obj1/obj1_cam1_mask.png",
+  "sam3d_glb": "data/outputs_set5/obj1/obj1_sam3d.glb",
+  "sam3d_gs_ply": null,
+  "seed": 42,
+  "export_key": "glb",
+  "output_summary": {
+    "output_keys": [
+      "6drotation_normalized",
+      "coords",
+      "coords_original",
+      "downsample_factor",
+      "gaussian",
+      "glb",
+      "gs",
+      "mesh",
+      "pointmap",
+      "pointmap_colors",
+      "rotation",
+      "scale",
+      "shape",
+      "translation",
+      "translation_scale"
+    ],
+    "6drotation_normalized": {
+      "type": "<class 'torch.Tensor'>"
+    },
+    "scale": {
+      "type": "<class 'torch.Tensor'>"
+    },
+    "shape": {
+      "type": "<class 'torch.Tensor'>"
+    },
+    "translation": {
+      "type": "<class 'torch.Tensor'>"
+    },
+    "translation_scale": {
+      "type": "<class 'torch.Tensor'>"
+    },
+    "coords_original": {
+      "type": "<class 'torch.Tensor'>"
+    },
+    "coords": {
+      "type": "<class 'torch.Tensor'>"
+    },
+    "downsample_factor": {
+      "type": "<class 'int'>"
+    },
+    "rotation": {
+      "type": "<class 'torch.Tensor'>"
+    },
+    "mesh": {
+      "type": "<class 'list'>"
+    },
+    "gaussian": {
+      "type": "<class 'list'>"
+    },
+    "glb": {
+      "type": "<class 'trimesh.base.Trimesh'>",
+      "vertices": 318626,
+      "faces": 637244
+    },
+    "gs": {
+      "type": "<class 'sam3d_objects.model.backbone.tdfy_dit.representations.gaussian.gaussian_model.Gaussian'>"
+    },
+    "pointmap": {
+      "type": "<class 'torch.Tensor'>"
+    },
+    "pointmap_colors": {
+      "type": "<class 'torch.Tensor'>"
+    }
+  },
+  "translation": [
+    [
+      -0.3010554909706116,
+      0.012698544189333916,
+      1.0149469375610352
+    ]
+  ],
+  "scale": [
+    [
+      0.394873708486557,
+      0.394873708486557,
+      0.394873708486557
+    ]
+  ],
+  "rotation": [
+    [
+      0.4060184955596924,
+      0.6341719627380371,
+      0.546078622341156,
+      0.36711448431015015
+    ]
+  ]
+}
