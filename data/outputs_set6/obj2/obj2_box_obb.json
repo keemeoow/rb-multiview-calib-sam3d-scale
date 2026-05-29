@@ -1,0 +1,41 @@
+{
+  "source_cloud": "data/outputs_set6/obj2/obj2_cloud_clean.ply",
+  "num_points": 446,
+  "num_points_used": 446,
+  "mask_validation": {
+    "applied": false
+  },
+  "extents_m": [
+    0.03572164280282472,
+    0.02767089530642914,
+    0.02115944972065198
+  ],
+  "extents_mm_sorted_desc": [
+    35.72164280282472,
+    27.67089530642914,
+    21.159449720651978
+  ],
+  "obb_center_world_m": [
+    -0.0914429875336187,
+    0.5499850161053839,
+    -0.0005662750408418253
+  ],
+  "obb_R_world_from_box": [
+    [
+      -0.3129849366305116,
+      -0.3101411837359537,
+      0.8976930854101842
+    ],
+    [
+      0.11615138522737013,
+      -0.9505851364657262,
+      -0.2879179640803955
+    ],
+    [
+      0.9426289222977183,
+      0.014154309636936363,
+      0.33354215680561883
+    ]
+  ],
+  "note": "Box mesh is origin-centered, AXIS-ALIGNED in its own canonical frame. FoundationPose \uac00 scene \uc5d0\uc11c \ud68c\uc804/\uc704\uce58\ub97c \ucd94\uc815. obb_R_world_from_box / obb_center_world_m \ub294 \uc9c4\ub2e8 \ucc38\uace0\uc6a9."
+}
