@@ -21,8 +21,8 @@
 # 내부 파라미터(K, D)는 Step1 팩토리 intrinsics 를 신뢰해 고정한다.
 
 """
-python Step3_calibrate_multi_cam_cube.py \
-  --root_folder ./data/cube_session_01 --intrinsics_dir ./intrinsics \
+python Calib_Step3_calibrate_multi_cam_cube.py \
+  --root_folder ./data/static_cams_session_01 --intrinsics_dir ./intrinsics \
   --ref_cam_idx 0 --min_markers 1 --reproj_max_px 5 --save_overlay
 """
 

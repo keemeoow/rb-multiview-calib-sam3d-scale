@@ -1,7 +1,7 @@
 # Step1_dump_intrinsics.py
 
 """
-python Step1_dump_intrinsics.py
+python Calib_Step1_dump_intrinsics.py
 
 [Result]
 - intrinsics/device_map.json (serial → cam_idx 고정 매핑)

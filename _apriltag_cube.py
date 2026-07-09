@@ -86,10 +86,11 @@ class CubeConfig:
         SIDE_MARKER_NEG_Y_ID,
     )
 
-    # 마커면이 CAD 외곽면보다 얼마나 파여 있는지(m). 종이/스티커 두께가 리세스
-    # 포켓을 메워 태그가 표면과 같은 높이가 되므로 0.0 이 물리적으로 맞다.
-    # 태그가 실제로 표면보다 0.1mm 아래에 있다고 확인했을 때만 0.0001 로 둘 것.
-    marker_inset_m: float = 0.0
+    # 마커면이 CAD 외곽면보다 얼마나 파여 있는지(m). 양수=함몰, 음수=돌출.
+    # 태그 한 변 51.00mm(캘리퍼스 실측)를 고정하고 static_cams_session_01 로 적합한 결과
+    # 스티커가 표면보다 0.26mm 돌출해 있다 (RMS 0.404px -> 0.359px).
+    # 곡선이 -0.20 ~ -0.30mm 구간에서 평탄하므로 불확실도는 대략 +-0.05mm.
+    marker_inset_m: float = -0.00026
 
     id_to_face: dict = None
     face_roll_deg: dict = None
@@ -107,8 +108,17 @@ class CubeConfig:
                 SIDE_MARKER_NEG_Y_ID: "-Y",
             }
         if self.face_roll_deg is None:
-            # 각 면 법선을 축으로 한 in-plane 회전(도). 실물로 검증할 것.
-            self.face_roll_deg = {mid: 0.0 for mid in self.marker_ids}
+            # 각 면 법선을 축으로 한 in-plane 회전(도).
+            # 측면 4개는 static_cams_session_01 데이터로 검증됨 (다중마커 PnP RMS 0.40px).
+            # 상면 2개(id 0,1)는 해당 세션에서 검출된 적이 없어 미검증 상태다.
+            self.face_roll_deg = {
+                TOP_MARKER_NEG_Y_ID: 0.0,    # 미검증
+                TOP_MARKER_POS_Y_ID: 0.0,    # 미검증
+                SIDE_MARKER_POS_X_ID: 90.0,
+                SIDE_MARKER_POS_Y_ID: 180.0,
+                SIDE_MARKER_NEG_X_ID: 270.0,
+                SIDE_MARKER_NEG_Y_ID: 0.0,
+            }
         if self.marker_size_by_id is None:
             self.marker_size_by_id = {
                 TOP_MARKER_NEG_Y_ID: TOP_MARKER_SIZE_M,
