@@ -4,8 +4,9 @@
 
 사용 예 (고정 카메라 3대로만 촬영 캘리브레이션 K/T 까지 한 번에 dump - base좌표계 기준):
 python Obj_Step1_capture_object.py \
-  --out_dir         data/capture_obj_set8 \
+  --out_dir         data/capture_obj \
   --intrinsics_dir  intrinsics \
+  --show
   --transforms_json data/handeye_session_01/T_R_Ci_all.json \
   --depth_burst_n 10 --show
 

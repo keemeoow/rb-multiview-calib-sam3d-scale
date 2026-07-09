@@ -1,0 +1,25 @@
+{
+  "ref_cam_idx": 0,
+  "world_frame": "cam0",
+  "transforms_json": "data/static_cams_session_01/calib_out_cube/transforms/T_C0_Ci_all.json",
+  "cameras": [
+    {
+      "cam_id": 0,
+      "serial": "314522062542",
+      "depth_scale_m_per_unit": 0.0010000000474974513,
+      "K_source": "color_K"
+    },
+    {
+      "cam_id": 1,
+      "serial": "319522062138",
+      "depth_scale_m_per_unit": 0.0010000000474974513,
+      "K_source": "color_K"
+    },
+    {
+      "cam_id": 2,
+      "serial": "912322060991",
+      "depth_scale_m_per_unit": 0.0010000000474974513,
+      "K_source": "color_K"
+    }
+  ]
+}
