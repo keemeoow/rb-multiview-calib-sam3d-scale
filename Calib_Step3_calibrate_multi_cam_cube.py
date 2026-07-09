@@ -1,11 +1,24 @@
 # Step3_calibrate_multi_cam_cube.py
 # 캘리브레이션(카메라 간 변환 계산)
 #
-# 항상 적용되는 동작:
-#   (1) 다중 마커 PnP 우선 (single_marker_only=False)
-#       → 한 카메라에 마커 2개 이상 보이면 IPPE 모호성 없음
-#   (2) Per-frame T_Cref_Ci 추정값에서 회전 outlier(주로 IPPE flip) 자동 배제
-#       → 초기 평균 대비 회전 편차 > FLIP_ROT_DEG_THRESH 인 프레임 제외 후 재평균
+# 최종 행렬은 재투영 오차를 직접 최소화하는 bundle adjustment 로 구한다.
+# PnP + SE(3) 평균은 그 초기값을 만드는 단계일 뿐이다.
+#
+# 파이프라인:
+#   STEP1  전체 프레임 per-camera PnP → T_C_O 초기값 + 코너 대응점 수집
+#          - 다중 마커 PnP 우선 (single_marker_only=False)
+#            → 한 카메라에 마커 2개 이상 보이면 IPPE 모호성 없음
+#   STEP2  T_Cref_Ci = T_Cref_O @ inv(T_Ci_O) 를 프레임마다 만들어 robust SE(3) 평균
+#          - 회전 outlier(주로 IPPE flip) 자동 배제
+#            (초기 평균 대비 회전 편차 > FLIP_ROT_DEG_THRESH 인 프레임 제외 후 재평균)
+#          → 여기까지는 재투영 오차를 '가중치/필터'로만 쓴다
+#   STEP2.5 bundle adjustment (_bundle_adjust.py)
+#          - unknowns: T_Cref_Ci (카메라당 6DOF) + 프레임별 큐브 pose (6DOF)
+#          - 잔차: 모든 카메라·모든 마커 코너의 재투영 오차 (px)
+#          - Huber loss + 점 단위 outlier 제거 후 재최적화
+#          → 최종 T_Cref_Ci. --no_bundle_adjust 로 끄면 STEP2 결과가 최종.
+#
+# 내부 파라미터(K, D)는 Step1 팩토리 intrinsics 를 신뢰해 고정한다.
 
 """
 python Step3_calibrate_multi_cam_cube.py \
@@ -25,7 +38,8 @@ from typing import Optional, Dict, List
 import numpy as np
 import cv2
 
-from _aruco_cube import CubeConfig, ArucoCubeTarget, rodrigues_to_Rt, inv_T
+from _apriltag_cube import CubeConfig, AprilTagCubeTarget, rodrigues_to_Rt, inv_T
+from _bundle_adjust import Observation, bundle_adjust_multicam
 
 
 try:
@@ -106,6 +120,9 @@ class CubeCam:
         self.frames: List[FrameRec] = []
         self.T_C_O: Dict[int, np.ndarray] = {}   # per frame: Obj→Cam
         self.reproj: Dict[int, dict] = {}         # per frame: reproj stats
+        # per frame: (obj_pts Nx3, img_pts Nx2) — 검출된 모든 유효 마커의 코너.
+        # PnP가 실제로 쓴 부분집합이 아니라 전체를 담는다 (bundle adjustment 입력).
+        self.detections: Dict[int, tuple] = {}
 
     def add_frame(self, fr: FrameRec):
         self.frames.append(fr)
@@ -163,7 +180,19 @@ def main():
     parser.add_argument("--reject_kmad",         type=float, default=2.5,
                         help="robust_se3_average 내부 MAD 임계 (작을수록 엄격, default 2.5). "
                              "예: 1.5 ~ 2.0 으로 줄이면 비정상 프레임 자동 거부 더 적극적.")
+    parser.add_argument("--no_bundle_adjust",    action="store_true",
+                        help="재투영 오차 직접 최소화(BA)를 끄고 PnP + SE3 평균 결과를 최종으로 사용")
+    parser.add_argument("--ba_huber_px",         type=float, default=2.0,
+                        help="BA Huber loss f_scale (px). 이보다 큰 잔차는 선형 가중.")
+    parser.add_argument("--ba_reject_px",        type=float, default=4.0,
+                        help="BA 라운드 후 이 값(px)을 넘는 점을 버리고 재최적화. <=0 이면 비활성.")
+    parser.add_argument("--ba_reject_rounds",    type=int,   default=3,
+                        help="BA outlier 제거 + 재최적화 반복 횟수")
+    parser.add_argument("--ba_max_nfev",         type=int,   default=3000,
+                        help="BA 최대 함수 평가 횟수 (수렴 실패 시 늘릴 것)")
     args = parser.parse_args()
+    if args.ba_reject_px is not None and args.ba_reject_px <= 0:
+        args.ba_reject_px = None
 
     excluded_frames = parse_exclude_frames(args.exclude_frames)
     if excluded_frames:
@@ -188,7 +217,7 @@ def main():
                 cams[ci].add_frame(FrameRec(fid, v.get("ts_ms"), v["rgb_path"]))
 
     cfg  = CubeConfig()
-    cube = ArucoCubeTarget(cfg)
+    cube = AprilTagCubeTarget(cfg)
     print("[INFO] Cube face_roll_deg:", {int(k): float(v) for k, v in sorted(cfg.face_roll_deg.items())})
     print("[INFO] PnP mode: 다중 마커 우선, 부족하면 best single fallback "
           f"(IPPE flip 자동 배제: rot 편차 > {FLIP_ROT_DEG_THRESH:.0f}°)")
@@ -236,6 +265,16 @@ def main():
             cam.T_C_O[fr.frame_id] = rodrigues_to_Rt(rvec, tvec)
             err_list.append(reproj["err_mean"])
 
+            # bundle adjustment 입력: 검출된 모든 유효 마커의 코너 대응점.
+            # (PnP는 단일 마커 fallback 시 4점만 쓰지만, BA는 전부 활용한다)
+            corners_list, ids_flat = cube.detect(img)
+            if ids_flat is not None:
+                obj_all, img_all, used_all = cube.build_correspondences(
+                    corners_list, ids_flat, min_markers=1)
+                if obj_all is not None:
+                    cam.detections[fr.frame_id] = (
+                        obj_all.reshape(-1, 3), img_all.reshape(-1, 2))
+
             cam.reproj[fr.frame_id] = {
                 "ok":           True,
                 "used_ids":     [int(x) for x in used],
@@ -249,7 +288,6 @@ def main():
             }
 
             if args.save_overlay and overlay_saved < args.overlay_max_per_cam:
-                corners_list, ids_flat = cube.detect(img)
                 vis = draw_overlay(
                     img,
                     corners_list,
@@ -489,6 +527,84 @@ def main():
               f"상위 기여: {top_str}")
 
     # ------------------------------------------------------------------ #
+    # 2.5) Bundle adjustment: 재투영 오차 직접 최소화
+    #      위 STEP2 (PnP + robust SE3 평균) 결과는 초기값으로만 쓰인다.
+    #      여기서 T_Cref_Ci 와 프레임별 큐브 pose 를 동시에 놓고
+    #      모든 카메라·모든 코너의 재투영 잔차를 최소화해 최종 행렬을 얻는다.
+    # ------------------------------------------------------------------ #
+    ba_stats = None
+    if not args.no_bundle_adjust:
+        print(f"\n[STEP2.5] Bundle adjustment (재투영 오차 직접 최소화)")
+
+        # 프레임별 큐브 pose 초기값: ref cam PnP 우선,
+        # ref 가 못 본 프레임은 다른 카메라 pose 를 초기 외부파라미터로 ref 좌표계에 옮겨 평균.
+        T_Cref_O_init: Dict[int, np.ndarray] = {}
+        for fid in sorted({f for c in cams.values() for f in c.T_C_O}):
+            cands = []
+            if fid in ref_cam.T_C_O:
+                cands.append(ref_cam.T_C_O[fid])
+            for ci, cam in cams.items():
+                if ci == ref_ci or ci not in final_T:
+                    continue
+                if fid in cam.T_C_O:
+                    cands.append(final_T[ci] @ cam.T_C_O[fid])
+            if not cands:
+                continue
+            if len(cands) >= 3 and robust_se3_average is not None:
+                T_Cref_O_init[fid] = robust_se3_average(cands)
+            else:
+                T_Cref_O_init[fid] = se3_avg_weighted(cands)
+
+        obs_list = []
+        for ci, cam in cams.items():
+            for fid, (obj, img_pts) in cam.detections.items():
+                if fid in T_Cref_O_init:
+                    obs_list.append(Observation(ci, fid, obj, img_pts))
+
+        cams_with_extr = {ci for ci in final_T if ci != ref_ci}
+        obs_list = [o for o in obs_list if o.cam_id == ref_ci or o.cam_id in cams_with_extr]
+
+        if len(obs_list) < 2:
+            print("[WARN] BA 관측 부족 → STEP2 결과(PnP 평균)를 그대로 사용")
+        else:
+            try:
+                T_ba, T_frames_ba, ba_stats = bundle_adjust_multicam(
+                    obs_list, K_map, D_map,
+                    {ci: final_T[ci] for ci in cams_with_extr},
+                    T_Cref_O_init,
+                    ref_cam=ref_ci,
+                    huber_px=args.ba_huber_px,
+                    reject_px=args.ba_reject_px,
+                    reject_rounds=args.ba_reject_rounds,
+                    max_nfev=args.ba_max_nfev,
+                    verbose=True,
+                )
+            except Exception as e:
+                print(f"[WARN] BA 실패 ({e}) → STEP2 결과(PnP 평균)를 그대로 사용")
+                T_ba = None
+
+            if T_ba is not None:
+                # BA 전후 변화량 출력 후 최종 행렬 갱신 + 재저장
+                for ci in sorted(cams_with_extr):
+                    if ci not in T_ba:
+                        # outlier 제거 후 이 카메라의 관측이 모두 사라진 경우.
+                        # 조용히 넘어가면 PnP 값이 BA 결과인 척하게 되므로 알린다.
+                        print(f"[WARN] cam{ci}: BA 관측이 남지 않아 STEP2(PnP 평균) 값을 유지")
+                        continue
+                    dt_mm = float(np.linalg.norm(T_ba[ci][:3, 3] - final_T[ci][:3, 3]) * 1000.0)
+                    dr_deg = rotation_angle_deg(T_ba[ci][:3, :3], final_T[ci][:3, :3])
+                    print(f"[BA] cam{ci}: PnP평균 대비 이동 {dt_mm:.3f}mm, 회전 {dr_deg:.4f}°")
+                    final_T[ci] = T_ba[ci]
+                    np.save(os.path.join(out_root, f"T_C{ref_ci}_C{ci}.npy"), T_ba[ci])
+
+                ba_report = os.path.join(calib_results_dir, "bundle_adjust_report.json")
+                with open(ba_report, "w") as f:
+                    json.dump(ba_stats, f, indent=2)
+                print(f"[SAVE] {ba_report}")
+    else:
+        print("\n[STEP2.5] Bundle adjustment 건너뜀 (--no_bundle_adjust)")
+
+    # ------------------------------------------------------------------ #
     # 3) 결과 저장 (CSV + JSON)
     # ------------------------------------------------------------------ #
     print(f"\n[STEP3] 결과 저장")
@@ -513,8 +629,12 @@ def main():
     final_json = {str(ci): T.reshape(-1).tolist() for ci, T in final_T.items()}
     out_json   = os.path.join(transforms_dir, f"T_C{ref_ci}_Ci_all.json")
     with open(out_json, "w") as f:
-        json.dump({"ref_cam_idx": int(ref_ci), "T_Cref_Ci": final_json},
-                  f, indent=2)
+        json.dump({
+            "ref_cam_idx": int(ref_ci),
+            "method": "bundle_adjustment" if ba_stats is not None else "pnp_se3_average",
+            "reproj_rms_px": None if ba_stats is None else ba_stats["rms_px_final"],
+            "T_Cref_Ci": final_json,
+        }, f, indent=2)
     print(f"[SAVE] {out_json}")
 
     print("\n[INFO] Step3 calibration finished.")

@@ -40,7 +40,7 @@ if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
 from _camera import RealSenseCamera
-from _aruco_cube import CubeConfig, ArucoCubeTarget
+from _apriltag_cube import CubeConfig, AprilTagCubeTarget
 
 
 def ensure_dir(p: str) -> str:
@@ -278,7 +278,7 @@ def main():
             robot_sock = None
 
     cfg = CubeConfig()
-    cube = ArucoCubeTarget(cfg)
+    cube = AprilTagCubeTarget(cfg)
 
     meta = {"root_folder": os.path.abspath(root), "captures": []}
     meta_path = os.path.join(root, "meta.json")

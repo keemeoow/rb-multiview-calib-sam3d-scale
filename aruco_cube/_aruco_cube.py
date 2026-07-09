@@ -1,10 +1,3 @@
-"""AprilTag 59mm calibration cube: geometry, detection, and PnP.
-
-이 프로젝트의 캘리브레이션 큐브 정의는 여기가 단일 기준(single source of truth)이다.
-이전 30mm ArUco(DICT_4X4_50) 큐브 구현은 aruco_cube/_aruco_cube.py 에 보관되어 있고
-더 이상 파이프라인에서 쓰이지 않는다.
-"""
-
 import cv2
 import numpy as np
 from dataclasses import dataclass
@@ -44,99 +37,45 @@ def rot_axis_angle(axis: np.ndarray, angle: float) -> np.ndarray:
 # -------------------------
 # Cube config
 # -------------------------
-# =============================================================================
-# USER-EDITABLE MARKER IDS / SIZES - AprilTag 59mm calibration cube
-# -----------------------------------------------------------------------------
-# 태그를 다른 ID로 다시 출력할 때만 이 블록을 수정한다.
-# +Z 상면에는 25mm 태그 2개가 y=-14mm, y=+14mm 에 붙는다.
-# 나머지 4개 측면에는 51mm 태그가 1개씩 붙는다.
-# =============================================================================
-TOP_MARKER_NEG_Y_ID = 0   # +Z 상면, center: (0, -14, +29.5) mm
-TOP_MARKER_POS_Y_ID = 1   # +Z 상면, center: (0, +14, +29.5) mm
-SIDE_MARKER_POS_X_ID = 2  # +X 측면, center: (+29.5, 0, -1) mm
-SIDE_MARKER_POS_Y_ID = 3  # +Y 측면, center: (0, +29.5, -1) mm
-SIDE_MARKER_NEG_X_ID = 4  # -X 측면, center: (-29.5, 0, -1) mm
-SIDE_MARKER_NEG_Y_ID = 5  # -Y 측면, center: (0, -29.5, -1) mm
-
-TOP_MARKER_SIZE_M = 0.025
-SIDE_MARKER_SIZE_M = 0.051
-# =============================================================================
-
-
 @dataclass
 class CubeConfig:
-    """59 x 59 x 59mm AprilTag 큐브의 물리 정의. 단위는 모두 meter.
-
-    object frame:
-      - 원점: 59mm 바운딩 큐브의 중심
-      - +Z 가 위쪽이고 상면은 z = +29.5mm
-      - 측면 마커 중심의 z 가 -1mm 인 이유는 57mm 하부 몸통이
-        z = -29.5mm .. +27.5mm 를 차지하기 때문이다.
-    """
-
-    cube_side_m: float = 0.059
-    marker_size_m: float = SIDE_MARKER_SIZE_M   # id 별 크기가 없을 때만 쓰는 fallback
-    dictionary_name: str = "DICT_APRILTAG_36h11"
-    marker_ids: tuple = (
-        TOP_MARKER_NEG_Y_ID,
-        TOP_MARKER_POS_Y_ID,
-        SIDE_MARKER_POS_X_ID,
-        SIDE_MARKER_POS_Y_ID,
-        SIDE_MARKER_NEG_X_ID,
-        SIDE_MARKER_NEG_Y_ID,
-    )
-
-    # 마커면이 CAD 외곽면보다 얼마나 파여 있는지(m). 종이/스티커 두께가 리세스
-    # 포켓을 메워 태그가 표면과 같은 높이가 되므로 0.0 이 물리적으로 맞다.
-    # 태그가 실제로 표면보다 0.1mm 아래에 있다고 확인했을 때만 0.0001 로 둘 것.
-    marker_inset_m: float = 0.0
+    cube_side_m: float = 0.03       # cube size
+    marker_size_m: float = 0.022     # marker size
+    dictionary_name: str = "DICT_4X4_50"
+    marker_ids: tuple = (0, 1, 2, 3, 4)
 
     id_to_face: dict = None
     face_roll_deg: dict = None
-    marker_size_by_id: dict = None
-    marker_center_m: dict = None
 
     def __post_init__(self):
         if self.id_to_face is None:
             self.id_to_face = {
-                TOP_MARKER_NEG_Y_ID: "+Z",
-                TOP_MARKER_POS_Y_ID: "+Z",
-                SIDE_MARKER_POS_X_ID: "+X",
-                SIDE_MARKER_POS_Y_ID: "+Y",
-                SIDE_MARKER_NEG_X_ID: "-X",
-                SIDE_MARKER_NEG_Y_ID: "-Y",
+                0: "+Z",
+                1: "+X",
+                2: "+Y",
+                3: "-X",
+                4: "-Y",
             }
         if self.face_roll_deg is None:
-            # 각 면 법선을 축으로 한 in-plane 회전(도). 실물로 검증할 것.
-            self.face_roll_deg = {mid: 0.0 for mid in self.marker_ids}
-        if self.marker_size_by_id is None:
-            self.marker_size_by_id = {
-                TOP_MARKER_NEG_Y_ID: TOP_MARKER_SIZE_M,
-                TOP_MARKER_POS_Y_ID: TOP_MARKER_SIZE_M,
-                SIDE_MARKER_POS_X_ID: SIDE_MARKER_SIZE_M,
-                SIDE_MARKER_POS_Y_ID: SIDE_MARKER_SIZE_M,
-                SIDE_MARKER_NEG_X_ID: SIDE_MARKER_SIZE_M,
-                SIDE_MARKER_NEG_Y_ID: SIDE_MARKER_SIZE_M,
-            }
-        if self.marker_center_m is None:
-            self.marker_center_m = {
-                TOP_MARKER_NEG_Y_ID: (0.0, -0.014, 0.0295),
-                TOP_MARKER_POS_Y_ID: (0.0, 0.014, 0.0295),
-                SIDE_MARKER_POS_X_ID: (0.0295, 0.0, -0.001),
-                SIDE_MARKER_POS_Y_ID: (0.0, 0.0295, -0.001),
-                SIDE_MARKER_NEG_X_ID: (-0.0295, 0.0, -0.001),
-                SIDE_MARKER_NEG_Y_ID: (0.0, -0.0295, -0.001),
+            # Fixed to the validated real attachment setup.
+            self.face_roll_deg = {
+                0: 0.0,
+                1: 270.0,
+                2: 0.0,
+                3: 90.0,
+                4: 180.0,
             }
 
 # -------------------------
 # Cube geometry
 # -------------------------
-class AprilTagCubeModel:
+class ArucoCubeModel:
     def __init__(self, cfg: CubeConfig):
         self.cfg = cfg
         d = cfg.cube_side_m / 2.0
+        s = cfg.marker_size_m / 2.0
 
-        # Each face: fallback center c, axes u,v, normal n (in rig/object coord)
+        # Each face: center c, axes u,v, normal n (in rig/object coord)
         self.face_defs = {
             "+Z": (np.array([0, 0,  d], np.float64),
                    np.array([1, 0, 0], np.float64),   # u = +X
@@ -169,44 +108,19 @@ class AprilTagCubeModel:
                    np.array([0,-1, 0], np.float64)),  # n = -Y
         }
 
-    def marker_size(self, marker_id: int) -> float:
-        """이 마커의 한 변 길이(m). 상면 태그와 측면 태그의 크기가 다르다."""
-        return float(self.cfg.marker_size_by_id.get(int(marker_id), self.cfg.marker_size_m))
-
-    def local_corners_for(self, marker_id: int) -> np.ndarray:
-        """마커 평면(local z=0) 위의 코너.
-
-        캘리브레이션이 쓰는 고정 코너 순서:
-          0=(+x,-y), 1=(-x,-y), 2=(-x,+y), 3=(+x,+y)
-        """
-        s = self.marker_size(marker_id) / 2.0
-        return np.array([
+        # Marker local corners on marker plane (z=0 in local marker frame).
+        # Fixed corner index order used by calibration:
+        #   0=(+x,-y), 1=(-x,-y), 2=(-x,+y), 3=(+x,+y)
+        self.local_corners = np.array([
             [ s, -s, 0],
             [-s, -s, 0],
             [-s,  s, 0],
             [ s,  s, 0],
         ], dtype=np.float64)
-
-    def marker_center_in_rig(self, marker_id: int) -> np.ndarray:
-        """object frame 에서의 마커 중심. 상면 태그 2개는 면 중심에서 벗어나 있다."""
-        marker_id = int(marker_id)
-        face = self.cfg.id_to_face[marker_id]
-        c_face, _, _, n = self.face_defs[face]
-
-        c = np.asarray(
-            self.cfg.marker_center_m.get(marker_id, c_face), dtype=np.float64
-        ).reshape(3)
-
-        inset = float(getattr(self.cfg, "marker_inset_m", 0.0) or 0.0)
-        if inset:
-            c = c - inset * (n / (np.linalg.norm(n) + 1e-12))
-        return c
-
     def marker_corners_in_rig(self, marker_id: int) -> np.ndarray:
         marker_id = int(marker_id)
         face = self.cfg.id_to_face[marker_id]
-        _, u, v, n = self.face_defs[face]
-        c = self.marker_center_in_rig(marker_id)
+        c, u, v, n = self.face_defs[face]
 
         roll_deg = float(self.cfg.face_roll_deg.get(marker_id, 0.0))
         roll = np.deg2rad(roll_deg)
@@ -216,14 +130,14 @@ class AprilTagCubeModel:
         v2 = (Rr @ v.reshape(3, 1)).reshape(3)
 
         pts = []
-        for p in self.local_corners_for(marker_id):
+        for p in self.local_corners:
             pts.append(c + u2 * p[0] + v2 * p[1])
         return np.asarray(pts, dtype=np.float64)
 
 # -------------------------
 # Target
 # -------------------------
-class AprilTagCubeTarget:
+class ArucoCubeTarget:
     def __init__(self, cfg: CubeConfig,
                  use_clahe: bool = False,
                  use_board_refine: bool = True,
@@ -235,7 +149,7 @@ class AprilTagCubeTarget:
           use_pyramid_fallback : 1차 0개 검출 케이스만 0.5x로 재시도
         """
         self.cfg = cfg
-        self.model = AprilTagCubeModel(cfg)
+        self.model = ArucoCubeModel(cfg)
         self.use_clahe = use_clahe
         self.use_board_refine = use_board_refine
         self.use_pyramid_fallback = use_pyramid_fallback
@@ -432,12 +346,11 @@ class AprilTagCubeTarget:
                 # marker_id를 알면 face normal 가시성으로 해 모호성 추가 제거
                 if marker_id is not None and marker_id in self.cfg.id_to_face:
                     face = self.cfg.id_to_face[int(marker_id)]
-                    _, _, _, n_face = self.model.face_defs[face]
-                    c_mkr = self.model.marker_center_in_rig(int(marker_id))
+                    c_face, _, _, n_face = self.model.face_defs[face]
                     R, _ = cv2.Rodrigues(rv)
                     n_cam = (R @ n_face.reshape(3, 1)).reshape(3)
-                    c_cam = (R @ c_mkr.reshape(3, 1)).reshape(3) + tv.reshape(3)
-                    # marker center -> camera(origin) 벡터와 법선의 내적
+                    c_cam = (R @ c_face.reshape(3, 1)).reshape(3) + tv.reshape(3)
+                    # face center -> camera(origin) 벡터와 법선의 내적
                     # 관측 가능한 face라면 양수여야 함
                     vis_score = float(np.dot(n_cam, -c_cam))
                     vis_ok = vis_score > 0.0

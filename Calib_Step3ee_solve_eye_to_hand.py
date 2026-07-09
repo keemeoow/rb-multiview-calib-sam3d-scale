@@ -38,7 +38,7 @@ import cv2
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _aruco_cube import CubeConfig, ArucoCubeTarget, rodrigues_to_Rt
+from _apriltag_cube import CubeConfig, AprilTagCubeTarget, rodrigues_to_Rt
 
 
 METHODS = {
@@ -63,7 +63,7 @@ def collect_pairs(root, intrinsics_dir, ref_cam_idx, reproj_max_px, min_markers)
         meta = json.load(f)
     K, D = load_intrinsics(intrinsics_dir, ref_cam_idx)
     cfg = CubeConfig()
-    cube = ArucoCubeTarget(cfg)
+    cube = AprilTagCubeTarget(cfg)
 
     T_cam_cube_list, T_base_ee_list, event_ids, reproj_list = [], [], [], []
     n_skip = 0

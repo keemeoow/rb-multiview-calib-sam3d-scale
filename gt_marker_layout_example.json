@@ -1,0 +1,21 @@
+{
+  "_comment": "정답 크기 측정용 마커 부착 규약. 각 마커 ID를 물체(직육면체) 축(x/y/z)과 면 부호(+/-)에 매핑. 물체를 직육면체로 보고, 측정할 각 면에 마커를 평평하게(가급적 면 중앙) 붙인다. 한 축의 +면과 -면 모두 마커가 있어야 그 축 크기를 측정. 큐브 캘리브(ID 0~4)와 겹치지 않게 ID는 10부터 사용 권장.",
+  "dictionary": "DICT_4X4_50",
+  "marker_size_m": 0.030,
+  "surface_offset_m": 0.0,
+  "axis_labels": {"x": "length", "y": "width", "z": "height"},
+  "markers": {
+    "10": {"axis": "x", "side": "+"},
+    "11": {"axis": "x", "side": "-"},
+    "12": {"axis": "y", "side": "+"},
+    "13": {"axis": "y", "side": "-"},
+    "14": {"axis": "z", "side": "+"},
+    "15": {"axis": "z", "side": "-"}
+  },
+  "_notes": {
+    "marker_size_m": "인쇄된 마커 한 변(검은 테두리 포함) 실측값[m]. 삼각측량 스케일 self-check 및 PnP 스케일에 사용.",
+    "surface_offset_m": "마커면이 물체 표면에서 떠 있는 두께[m]. 스티커면 0. 지그/받침이 있으면 그 두께. 축 extent에서 2*offset 빼줌.",
+    "per_marker_override": "특정 마커만 크기/오프셋 다르면 {\"size_m\":..., \"surface_offset_m\":...} 를 해당 항목에 추가.",
+    "multi_marker_per_face": "같은 (axis,side)에 여러 ID를 매핑하면 그 면 마커들 중심을 평균(면 커버리지↑, 강건성↑)."
+  }
+}

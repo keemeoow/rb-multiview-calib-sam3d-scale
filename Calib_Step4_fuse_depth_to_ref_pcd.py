@@ -36,7 +36,7 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 # open3d 는 선택적 의존성; 없어도 PLY 저장 + matplotlib로 대체
 
-from _aruco_cube import CubeConfig, ArucoCubeModel, ArucoCubeTarget, rodrigues_to_Rt, inv_T
+from _apriltag_cube import CubeConfig, AprilTagCubeModel, AprilTagCubeTarget, rodrigues_to_Rt, inv_T
 
 try:
     from _utils_pose import robust_se3_average
@@ -151,7 +151,7 @@ def collect_pnp_all_frames(
     root_folder: str,
     cam_indices: List[int],
     frame_ids: List[int],
-    cube: ArucoCubeTarget,
+    cube: AprilTagCubeTarget,
     K_map: Dict[int, np.ndarray],
     D_map: Dict[int, np.ndarray],
     reproj_max_px: float,
@@ -219,7 +219,7 @@ def resolve_ippe_flips_with_prior(
     T_ref: Dict[int, np.ndarray],
     ref_cam_idx: int,
     root_folder: str,
-    cube: ArucoCubeTarget,
+    cube: AprilTagCubeTarget,
     K_map: Dict[int, np.ndarray],
     D_map: Dict[int, np.ndarray],
     reproj_max_px: float,
@@ -518,16 +518,18 @@ def face_poly_3d(face_name: str, d: float) -> np.ndarray:
 
 def draw_cube_at_T(ax, T_Cref_O: np.ndarray, cfg: CubeConfig, alpha: float = 0.18):
     d = cfg.cube_side_m / 2.0
-    model = ArucoCubeModel(cfg)
+    model = AprilTagCubeModel(cfg)
     R, t = T_Cref_O[:3, :3], T_Cref_O[:3, 3]
-    face_to_id = {v: k for k, v in cfg.id_to_face.items()}
+    # +Z 상면에는 태그가 2개 붙으므로 face -> id 는 1:N 이다.
+    face_to_ids: Dict[str, List[int]] = {}
+    for mid, face in cfg.id_to_face.items():
+        face_to_ids.setdefault(face, []).append(int(mid))
 
     def to_ref(pts):
         return (R @ pts.T).T + t
 
     for face_name, color in FACE_COLORS.items():
         verts = to_ref(face_poly_3d(face_name, d))
-        mid = face_to_id.get(face_name)
         ax.add_collection3d(Poly3DCollection(
             [verts.tolist()],
             alpha=alpha,
@@ -535,7 +537,7 @@ def draw_cube_at_T(ax, T_Cref_O: np.ndarray, cfg: CubeConfig, alpha: float = 0.1
             edgecolor="gray",
             linewidth=0.7
         ))
-        if mid is not None:
+        for mid in face_to_ids.get(face_name, []):
             mc = to_ref(model.marker_corners_in_rig(mid))
             loop = np.vstack([mc, mc[0]])
             ax.plot3D(loop[:, 0], loop[:, 1], loop[:, 2], color=color, linewidth=1.5)
@@ -974,7 +976,7 @@ def main():
         K_map[ci], D_map[ci], _ = load_intrinsics_cam_npz(args.intrinsics_dir, ci)
 
     cfg = CubeConfig()
-    cube = ArucoCubeTarget(cfg)
+    cube = AprilTagCubeTarget(cfg)
     print("[INFO] Cube face_roll_deg:", {int(k): float(v) for k, v in sorted(cfg.face_roll_deg.items())})
     print("[INFO] PnP mode: 다중 마커 우선, 부족하면 best single fallback "
           f"(IPPE flip prior 재해소: rot 편차 > {FLIP_ROT_DEG_THRESH:.0f}°)")

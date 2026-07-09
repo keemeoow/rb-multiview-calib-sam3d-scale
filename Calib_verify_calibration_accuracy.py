@@ -32,7 +32,7 @@ if REPO_ROOT not in sys.path:
 if THIS_DIR not in sys.path:
     sys.path.insert(0, THIS_DIR)
 
-from _aruco_cube import CubeConfig, ArucoCubeTarget
+from _apriltag_cube import CubeConfig, AprilTagCubeTarget
 
 
 def load_intrinsics(intr_dir: str, ci: int):
@@ -78,7 +78,8 @@ def main():
     parser.add_argument("--calib_dir", default=None,
                         help="Default: <root>/calib_out_cube")
     parser.add_argument("--marker_size_m", type=float, default=None,
-                        help="Override CubeConfig.marker_size_m (m)")
+                        help="Override every marker's edge length (m). "
+                             "Leave unset to use the per-id sizes in CubeConfig.")
     parser.add_argument("--out_csv", default=None,
                         help="Optional: write summary metrics to CSV")
     args = parser.parse_args()
@@ -96,12 +97,15 @@ def main():
     cfg = CubeConfig()
     if args.marker_size_m is not None:
         cfg.marker_size_m = float(args.marker_size_m)
-    cube = ArucoCubeTarget(cfg)
+        cfg.marker_size_by_id = {mid: float(args.marker_size_m) for mid in cfg.marker_ids}
+    cube = AprilTagCubeTarget(cfg)
 
-    edge_expected = cfg.marker_size_m
-    diag_expected = edge_expected * np.sqrt(2.0)
-    print(f"[INFO] Expected marker edge = {edge_expected*1000:.2f} mm  "
-          f"(diagonal = {diag_expected*1000:.2f} mm)")
+    # 상면 태그(25mm)와 측면 태그(51mm) 크기가 다르므로 기대 변 길이는 마커별로 본다.
+    edge_expected_by_id = {mid: cube.model.marker_size(mid) for mid in cfg.id_to_face}
+    for mid in sorted(edge_expected_by_id):
+        e = edge_expected_by_id[mid]
+        print(f"[INFO] id {mid} ({cfg.id_to_face[mid]}): expected edge = {e*1000:.2f} mm  "
+              f"(diagonal = {e*np.sqrt(2.0)*1000:.2f} mm)")
 
     cam_indices = sorted({int(k) for cap in captures for k in cap["cams"].keys()})
     print(f"[INFO] Cameras: {cam_indices}, ref=cam{args.ref_cam_idx}")
@@ -120,6 +124,7 @@ def main():
 
     tri_residuals_mm = []
     edge_errors_mm = []
+    edge_rel_errors_pct = []
     diag_errors_mm = []
     per_frame = []
     per_marker_seen = {}  # mid -> count
@@ -196,10 +201,13 @@ def main():
             if not ok_marker:
                 continue
 
+            edge_expected = edge_expected_by_id[mid]
+            diag_expected = edge_expected * np.sqrt(2.0)
             for i_a, i_b in [(0, 1), (1, 2), (2, 3), (3, 0)]:
                 length = np.linalg.norm(tri_corners[i_a] - tri_corners[i_b])
                 err_mm = abs(length - edge_expected) * 1000.0
                 edge_errors_mm.append(err_mm)
+                edge_rel_errors_pct.append(err_mm / (edge_expected * 1000.0) * 100.0)
                 frame_edge.append(err_mm)
             for i_a, i_b in [(0, 2), (1, 3)]:
                 length = np.linalg.norm(tri_corners[i_a] - tri_corners[i_b])
@@ -239,15 +247,19 @@ def main():
     print(f"      p90    = {np.percentile(arr_tri, 90):8.4f}")
     print(f"      max    = {arr_tri.max():8.4f}")
     print()
-    print(f"[2] Marker edge recovery error         (expected {edge_expected*1000:.2f} mm)")
+    arr_edge_rel = np.asarray(edge_rel_errors_pct, dtype=np.float64)
+    expected_edges_mm = sorted({round(e * 1000.0, 2) for e in edge_expected_by_id.values()})
+    expected_txt = "/".join(f"{e:.2f}" for e in expected_edges_mm)
+    print(f"[2] Marker edge recovery error         (expected {expected_txt} mm)")
     print(f"      mean abs = {arr_edge.mean():8.4f} mm")
     print(f"      median   = {np.median(arr_edge):8.4f} mm")
     print(f"      RMS      = {np.sqrt(np.mean(arr_edge**2)):8.4f} mm")
     print(f"      p90      = {np.percentile(arr_edge, 90):8.4f} mm")
     print(f"      max      = {arr_edge.max():8.4f} mm")
-    print(f"      relative = {arr_edge.mean()/(edge_expected*1000.0)*100:.2f}%")
+    print(f"      relative = {arr_edge_rel.mean():.2f}%")
     print()
-    print(f"[3] Marker diagonal recovery error     (expected {diag_expected*1000:.2f} mm)")
+    print("[3] Marker diagonal recovery error     "
+          f"(expected {'/'.join(f'{e*np.sqrt(2.0):.2f}' for e in expected_edges_mm)} mm)")
     print(f"      mean abs = {arr_diag.mean():8.4f} mm")
     print(f"      median   = {np.median(arr_diag):8.4f} mm")
     print()
@@ -282,10 +294,9 @@ def main():
             w.writerow(["edge_err_median_mm", float(np.median(arr_edge))])
             w.writerow(["edge_err_rms_mm", float(np.sqrt(np.mean(arr_edge**2)))])
             w.writerow(["edge_err_p90_mm", float(np.percentile(arr_edge, 90))])
-            w.writerow(["edge_err_relative_pct",
-                        float(arr_edge.mean() / (edge_expected * 1000.0) * 100.0)])
+            w.writerow(["edge_err_relative_pct", float(arr_edge_rel.mean())])
             w.writerow(["diag_err_mean_mm", float(arr_diag.mean())])
-            w.writerow(["expected_edge_mm", float(edge_expected * 1000.0)])
+            w.writerow(["expected_edge_mm", expected_txt])
             w.writerow(["frames_analyzed", len(per_frame)])
             w.writerow(["multi_view_obs", len(arr_tri)])
         print(f"\n[SAVE] {args.out_csv}")
