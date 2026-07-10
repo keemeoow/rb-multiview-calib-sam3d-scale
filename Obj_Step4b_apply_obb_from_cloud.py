@@ -47,6 +47,8 @@ import numpy as np
 import open3d as o3d
 import trimesh
 
+from _obb import obb as compute_obb
+
 
 def _load_cam_masks(cap_dir: Path, msk_dir: Path, dilate_px: int = 0):
     info = {}
@@ -110,6 +112,7 @@ def cloud_obb_extents(
     min_points: int = 50,
     cam_info: dict | None = None,
     min_cams: int = 0,
+    obb_method: str = "min_volume",
 ) -> tuple[np.ndarray, int, dict]:
     """점군에서 OBB extents (m) 추출. desc 정렬. 옵션: mask 검증 적용."""
     pcd = o3d.io.read_point_cloud(str(cloud_path))
@@ -131,10 +134,8 @@ def cloud_obb_extents(
         else:
             val_info["fallback"] = True
 
-    pcd_use = o3d.geometry.PointCloud()
-    pcd_use.points = o3d.utility.Vector3dVector(pts)
-    obb = pcd_use.get_oriented_bounding_box(robust=True)
-    extents = np.asarray(obb.extent, dtype=np.float64)
+    # 최소부피 OBB. open3d 의 PCA 축 OBB 는 등방적인 물체를 크게 부풀린다 (_obb.py 참고).
+    _, extents, _ = compute_obb(pts, method=obb_method)
     return np.sort(extents)[::-1], int(len(pts)), val_info
 
 
@@ -221,6 +222,9 @@ def main():
                     help="mask root (--mask_validate 시 필요)")
     ap.add_argument("--min_cams", type=int, default=2)
     ap.add_argument("--mask_dilate_px", type=int, default=5)
+    ap.add_argument("--obb_method", choices=["min_volume", "pca"], default="min_volume",
+                    help="OBB 축 결정 방식. min_volume=최소부피 상자(기본). "
+                         "pca=open3d 구 동작(등방적 물체를 부풀림, 옛 결과 재현용).")
     args = ap.parse_args()
 
     if args.mask_validate and args.mask_dir is None:
@@ -259,9 +263,11 @@ def main():
             target_ext_desc, n_pts, val_info = cloud_obb_extents(
                 ply, min_points=args.min_points,
                 cam_info=cam_info, min_cams=args.min_cams if args.mask_validate else 0,
+                obb_method=args.obb_method,
             )
             out_scene, info = apply_obb_to_mesh(sam3d, target_ext_desc)
             info["source_cloud"] = str(ply)
+            info["obb_method"] = str(args.obb_method)
             info["cloud_points_used"] = n_pts
             info["mask_validation"] = val_info
         except Exception as e:

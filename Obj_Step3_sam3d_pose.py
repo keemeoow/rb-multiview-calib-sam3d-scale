@@ -133,6 +133,8 @@ import trimesh
 from scipy.spatial import cKDTree
 from sklearn.neighbors import LocalOutlierFactor
 
+from _obb import obb
+
 
 # ============================================================
 # Data structure
@@ -603,15 +605,14 @@ def robust_extent(points: np.ndarray, q_low: float = 2.0, q_high: float = 98.0) 
     return np.maximum(hi - lo, 1e-9)
 
 
-def estimate_bbox_info(points: np.ndarray, use_oriented_bbox: bool = False) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def estimate_bbox_info(points: np.ndarray, use_oriented_bbox: bool = False,
+                       obb_method: str = "min_volume") -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     if len(points) < 10:
         raise RuntimeError("Too few points to estimate bbox.")
     points = np.ascontiguousarray(points, dtype=np.float64)
-    pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(points)
     if use_oriented_bbox:
-        bbox = pcd.get_oriented_bounding_box(robust=True)
-        return np.asarray(bbox.center), np.asarray(bbox.extent), np.asarray(bbox.R)
+        # 최소부피 OBB. open3d 의 PCA 축 OBB 는 등방적인 물체를 크게 부풀린다 (_obb.py 참고).
+        return obb(points, method=obb_method)
     bbox_min = points.min(axis=0)
     bbox_max = points.max(axis=0)
     return 0.5 * (bbox_min + bbox_max), bbox_max - bbox_min, np.eye(3)
@@ -1394,6 +1395,9 @@ def main() -> None:
                         help="콤마 구분 cam id (예: cam0). 비우면 모든 cam 사용. "
                              "마스크 품질이 들쭉날쭉할 때 좋은 cam만 골라 cloud 생성")
     parser.add_argument("--use_oriented_bbox", action="store_true")
+    parser.add_argument("--obb_method", choices=["min_volume", "pca"], default="min_volume",
+                        help="OBB 축 결정 방식. min_volume=최소부피 상자(기본). "
+                             "pca=open3d 구 동작(등방적 물체를 부풀림, 옛 결과 재현용).")
 
     parser.add_argument("--obj_ids", default="", help="Comma-separated object ids. Empty = all detected. Single-object fallback id is 0.")
 
@@ -1536,13 +1540,16 @@ def main() -> None:
         obj_out_dir_early.mkdir(parents=True, exist_ok=True)
         save_cloud_ply(obj_out_dir_early / f"{obj_tag}_cloud_clean.ply", cloud_pts)
 
-        center_world, bbox_extents_m, R_bbox_to_world = estimate_bbox_info(cloud_pts, use_oriented_bbox=args.use_oriented_bbox)
+        center_world, bbox_extents_m, R_bbox_to_world = estimate_bbox_info(
+            cloud_pts, use_oriented_bbox=args.use_oriented_bbox, obb_method=args.obb_method)
         bbox_info = {
             "obj_id": obj_id,
             "center_world_m": center_world.tolist(),
             "bbox_extents_m": bbox_extents_m.tolist(),
+            "bbox_extents_mm_sorted_desc": sorted([float(e) * 1000.0 for e in bbox_extents_m], reverse=True),
             "R_bbox_to_world": R_bbox_to_world.tolist(),
             "use_oriented_bbox": bool(args.use_oriented_bbox),
+            "obb_method": str(args.obb_method) if args.use_oriented_bbox else "aabb",
             "merged_clean_points": int(len(cloud_pts)),
             "view_clouds": [
                 {"cam_id": vc.cam_id, "raw_count": vc.raw_count, "clean_count": vc.clean_count}
