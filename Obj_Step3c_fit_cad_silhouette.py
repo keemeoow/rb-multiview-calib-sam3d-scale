@@ -6,7 +6,7 @@ CAD (또는 형상만 아는 메시) 가 있을 때의 **최선의 크기 추정
 다중뷰 SAM 마스크의 실루엣에 CAD 를 맞춰 스케일 + 6-DoF 포즈를 구한다.
 depth 는 초기값에만 쓴다 (근거는 _silhouette_fit.py 상단 참고).
 
-  점군 최소부피 OBB   3.37 mm   <- Obj_Step3 / Obj_Step3b (CAD 없을 때의 최선)
+  점군 최소부피 OBB   3.37 mm   (제거됨)
   메시 depth-ICP      0.79 mm
   메시 실루엣 정합    0.28 mm   <- 이 스크립트
   (참값 아는 합성 실험, 실제 카메라 배치, depth 편향 3mm 주입, 평균 |치수 오차|)
@@ -25,7 +25,7 @@ depth 는 초기값에만 쓴다 (근거는 _silhouette_fit.py 상단 참고).
   <obj>_sil_overlay.jpg   마스크 외곽선 vs 정합된 CAD 실루엣 (--save_overlay)
 
 [FoundationPose]
-  box.glb (직육면체 근사) 대신 <obj>_cad_scaled.glb 를 넘기는 것이 훨씬 좋다.
+  --mesh 에 <obj>_cad_scaled.glb 를 넘긴다 (실척 CAD, 원점 중심).
 """
 from __future__ import annotations
 
@@ -207,14 +207,16 @@ def main():
               f"depth_rms {fit['depth_rms_mm']:.2f} mm  nfev {fit['n_fev']}")
 
         spread = None
+        morph_ext = {}
         if args.mask_uncertainty:
             rows = [ext]
-            for morph, lab in ((+1, "dilate 1px"), (-1, "erode 1px")):
+            for morph, key in ((+1, "dilate1px"), (-1, "erode1px")):
                 v2, _ = build_views(args.capture_dir, args.mask_dir, obj, cams, morph=morph)
                 f2 = fit_cad_to_views(mesh, cloud, v2, w_depth=args.w_depth, max_fev=args.max_fev)
                 e2 = np.sort(f2["extents_m"])[::-1] * 1000.0
                 rows.append(e2)
-                print(f"  mask {lab:>10}   : {e2[0]:6.1f} x {e2[1]:6.1f} x {e2[2]:6.1f} mm")
+                morph_ext[key] = [float(x) for x in e2]
+                print(f"  mask {key:>10}   : {e2[0]:6.1f} x {e2[1]:6.1f} x {e2[2]:6.1f} mm")
             spread = (np.max(rows, axis=0) - np.min(rows, axis=0))
             print(f"  mask +/-1px spread : {spread[0]:6.1f} x {spread[1]:6.1f} x {spread[2]:6.1f} mm"
                   f"   <- dominant uncertainty")
@@ -241,6 +243,8 @@ def main():
             "extents_m": fit["extents_m"].tolist(),
             "extents_mm_sorted_desc": [float(x) for x in ext],
             "mask_pm1px_spread_mm": None if spread is None else [float(x) for x in spread],
+            "extents_mm_mask_dilate1px": morph_ext.get("dilate1px"),
+            "extents_mm_mask_erode1px": morph_ext.get("erode1px"),
             "per_view_iou": fit["per_view_iou"],
             "mean_iou": fit["mean_iou"],
             "depth_rms_mm": fit["depth_rms_mm"],

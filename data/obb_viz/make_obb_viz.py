@@ -11,10 +11,9 @@ obj2 처럼 등방적인(거의 정육면체) 물체에서 open3d 의 get_orient
 실행 (레포 루트에서):
   python data/obb_viz/make_obb_viz.py
 
-점군은 clouds/ 에 동봉되어 있다. 다시 만들려면:
-  python Obj_Step3_sam3d_pose.py --data_dir data/capture_obj --mask_dir data/masks \
-      --out_dir data/obb_viz/clouds --depth_scale 0.001 \
-      --mask_close_px 5 --mask_erode_px 3 --keep_largest_cc --use_oriented_bbox
+이 그림은 **제거된** 점군 OBB 크기 추정기를 진단할 때 만든 기록이다.
+현재 크기 추정은 Obj_Step3c_fit_cad_silhouette.py (다중뷰 CAD 실루엣 정합) 가 한다.
+필요한 점군은 clouds/ 에 동봉되어 있으므로 이 스크립트는 그대로 재실행된다.
 """
 from pathlib import Path
 

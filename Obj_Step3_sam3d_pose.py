@@ -1,116 +1,60 @@
 #!/usr/bin/env python3
 """
-Improved Multi-cam SAM3D Metric Scale Pipeline
-==============================================
+Multi-cam object point cloud + SAM3D mesh
+========================================
 
-실행 예시
---------
-######## 실행 전 : 하단 명령어에서 "set 이름" 변경
+이 스크립트는 **크기(metric scale)를 추정하지 않는다.**
+멀티뷰 RGB-D + 마스크로 물체 점군을 만들고, 지정 카메라의 RGB+mask 로 SAM3D 메시를
+생성할 뿐이다. 크기는 CAD 가 있으면 Obj_Step3c_fit_cad_silhouette.py 가 다중뷰 실루엣
+정합으로 구한다 (자 실측 대비 평균 0.90mm; 점군 OBB 3.04mm, depth-ICP 6.07mm).
 
-# 이미지 + 마스크 두 파일만으로 native SAM3D GLB 생성
-source sam3d_env_gb10.sh && PYTHONWARNINGS=ignore python3 Obj_Step3_sam3d_pose.py \
-  --data_dir "data(1)/capture_obj_set1" \
-  --mask_dir "data(1)/masks_set1" \
-  --out_dir "data(1)/outputs_set1" \
-
-# SAM3D GLB + 멀티뷰 포인트 클라우드로 scale 정합까지
-source sam3d_env_gb10.sh && PYTHONWARNINGS=ignore python3 Obj_Step3_sam3d_pose.py \
-  --data_dir "data/capture_obj_set8" \
-  --mask_dir "data/masks_set8" \
-  --out_dir  "data/outputs_set8" \
-  --depth_scale 0.001 \
-  --mask_close_px 5 --mask_erode_px 3 \
-  --keep_largest_cc \
-  --run_sam3d \
-  --sam3d_cam cam1 \
-  --scale_method auto \
-  --spconv_algo native
+옛 크기 추정 경로(점군 OBB bbox_metric.json, SAM3D 메시 metric 스케일링 *_scaled.glb,
+Obj_Step3b/Obj_Step4b 의 box.glb)는 제거되었다. 검은 무광 물체에서 depth 는 카메라 간
+5~15mm 씩 어긋나 mm 단위 크기 추정에 쓸 수 없기 때문이다. 여기서 만드는 점군은
+Obj_Step3c 의 **초기 포즈 추정용**으로는 충분하다.
 
 목적
 ----
-1. 멀티 RGB-D 카메라 + SAM/SAM2 mask + calibration으로 metric object point cloud 생성
-2. 지정 cam의 원본 RGB + mask로 SAM3D mesh 생성
-3. SAM3D mesh의 scale을 robust하게 metric scale로 정합
-4. FoundationPose 입력에 바로 사용할 수 있는 scaled mesh(GLB)와 scale report 저장
-
-핵심 개선점
------------
-- SAM mask erosion으로 boundary depth contamination 감소
-- view별 object cloud 생성 및 view별 scale 후보 계산
-- bbox scale 단독 사용 금지: bbox / robust pairwise distance / nearest-neighbor Chamfer 후보 비교
-- MAD 기반 view scale outlier rejection
-- optional Sim(3)-style ICP refinement: scale, rotation, translation을 반복 정합하되 최종적으로 scale만 신뢰
-- scale 품질 리포트 JSON 저장
+1. 멀티 RGB-D 카메라 + SAM/SAM2 mask + calibration 으로 물체 point cloud 생성
+2. 지정 cam 의 원본 RGB + mask 로 SAM3D mesh 생성 (CAD 가 없는 물체용)
 
 입력 폴더 예시
 -------------
 data_dir/
-  cam0_rgb.png
-  cam0_depth.png
-  cam0_K.txt
-  cam0_T_cam_to_world.txt
-  cam1_rgb.png
-  cam1_depth.png
-  cam1_K.txt
-  cam1_T_cam_to_world.txt
+  cam0_rgb.png  cam0_depth.png  cam0_K.txt  cam0_T_cam_to_world.txt
+  cam1_rgb.png  ...
 
 mask_dir/
-  cam0_mask.png
-  cam1_mask.png
-  ...
-또는 다중 물체:
-  cam0_obj1_mask.png
-  cam1_obj1_mask.png
-  cam0_obj2_mask.png
-  cam1_obj2_mask.png
+  cam0_mask.png ...                      # flat 단일 객체
+  cam0_obj1_mask.png ...                 # flat 다중 객체
+  obj1/cam0_mask.png ...                 # 객체별 서브폴더 (Obj_Step2 출력)
 
 실행 예시
 --------
 source sam3d_env_gb10.sh
 
-# (A) 객체별 폴더 형식 마스크 일괄 처리 (generate_masks_sam2.py 출력 형식)
+# 점군만 (CAD 가 있으면 이것으로 충분하다 -> Obj_Step3c)
 python Obj_Step3_sam3d_pose.py \
-  --data_dir ./capture_obj \
-  --mask_dir ./masks \
-  --out_dir ./outputs \
-  --depth_scale 0.001 \
-  --mask_close_px 5 --mask_erode_px 3 \
-  --run_sam3d \
-  --sam3d_cam cam1 \
-  --scale_method auto --refine_sim3_icp --use_oriented_bbox \
-  --obj_ids obj01
+  --data_dir ./data/capture_obj --mask_dir ./data/masks --out_dir ./data/outputs \
+  --depth_scale 0.001 --mask_close_px 5 --mask_erode_px 3 --keep_largest_cc
 
-SAM3D는 기본적으로 객체별 subprocess에서 실행한다. spconv/CUDA illegal memory가 발생해도
-메인 process의 metric scale 정합 단계가 오염되지 않게 하기 위함이다.
-
-# (B) 단일 객체 (flat mask 형식)
+# 점군 + SAM3D 메시 (CAD 가 없는 물체)
 python Obj_Step3_sam3d_pose.py \
-  --data_dir ./capture_obj \
-  --mask_dir ./masks/obj01 \
-  --out_dir ./outputs/obj01 \
-  --depth_scale 0.001 --mask_erode_px 5 \
-  --run_sam3d \
-  --sam3d_cam cam1 \
-  --scale_method auto --refine_sim3_icp --use_oriented_bbox
+  --data_dir ./data/capture_obj --mask_dir ./data/masks --out_dir ./data/outputs \
+  --depth_scale 0.001 --mask_erode_px 3 --keep_largest_cc \
+  --run_sam3d --sam3d_cam cam1 --spconv_algo native
 
-지원하는 mask 디렉토리 형식
----------------------------
-1) 객체별 서브폴더:  mask_dir/<obj_name>/cam{0,1,2}_mask.png  (generate_masks_sam2.py 출력)
-2) flat 다중 객체:    mask_dir/cam{N}_obj{X}_mask.png
-3) flat 단일 객체:    mask_dir/cam{N}_mask.png
+SAM3D 는 기본적으로 객체별 subprocess 에서 실행한다 (spconv/CUDA 오류 격리).
 
 sam3d_mesh 가 디렉토리면 다음 패턴들로 자동 매칭:
   obj{id}_sam3d.glb, obj{id}.glb, obj{id}_mesh.glb, obj{id}_result.glb,
-  object{n}_result.glb, object{n}.glb,
-  mesh.glb  (단일 객체 fallback)
+  object{n}_result.glb, object{n}.glb, mesh.glb (단일 객체 fallback)
 
 출력
 ----
-outputs/<obj_tag>/<obj_tag>_scaled.glb — metric scale 적용된 mesh (Isaac Sim 입력용)
-outputs/<obj_tag>/<obj_tag>_bbox_metric.json — 객체 metric bbox (실측 크기 m)
-outputs/<obj_tag>/<obj_tag>_scale_report.json — 스케일 후보 비교 + ICP refinement 로그
 outputs/<obj_tag>/<obj_tag>_cloud_clean.ply — 멀티뷰 통합 point cloud
-outputs/<obj_tag>/<obj_tag>_sam3d.glb — SAM3D 원본 mesh
+outputs/<obj_tag>/<obj_tag>_sam3d.glb       — SAM3D 원본 mesh (unitless)
+outputs/objects_summary.json
 """
 
 from __future__ import annotations
@@ -130,10 +74,7 @@ import cv2
 import numpy as np
 import open3d as o3d
 import trimesh
-from scipy.spatial import cKDTree
 from sklearn.neighbors import LocalOutlierFactor
-
-from _obb import obb
 
 
 # ============================================================
@@ -156,14 +97,6 @@ class ViewCloud:
     colors: Optional[np.ndarray]
     raw_count: int
     clean_count: int
-
-
-@dataclass
-class ScaleCandidate:
-    name: str
-    scale: float
-    score: float
-    details: dict
 
 
 # ============================================================
@@ -574,501 +507,6 @@ def save_cloud_ply(path: str | Path, points: np.ndarray, colors: Optional[np.nda
     o3d.io.write_point_cloud(str(path), pcd)
 
 
-# ============================================================
-# Geometry helpers
-# ============================================================
-
-def sample_points(points: np.ndarray, n: int, seed: int = 0) -> np.ndarray:
-    if len(points) == 0:
-        return points
-    if len(points) <= n:
-        return points.copy()
-    rng = np.random.default_rng(seed)
-    idx = rng.choice(len(points), size=n, replace=False)
-    return points[idx]
-
-
-def sample_mesh_surface(mesh: trimesh.Trimesh, n: int = 20000, seed: int = 0) -> np.ndarray:
-    np.random.seed(seed)
-    pts, _ = trimesh.sample.sample_surface(mesh, n)
-    return np.asarray(pts, dtype=np.float64)
-
-
-def center_points(points: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-    c = np.median(points, axis=0)
-    return points - c, c
-
-
-def robust_extent(points: np.ndarray, q_low: float = 2.0, q_high: float = 98.0) -> np.ndarray:
-    lo = np.percentile(points, q_low, axis=0)
-    hi = np.percentile(points, q_high, axis=0)
-    return np.maximum(hi - lo, 1e-9)
-
-
-def estimate_bbox_info(points: np.ndarray, use_oriented_bbox: bool = False,
-                       obb_method: str = "min_volume") -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    if len(points) < 10:
-        raise RuntimeError("Too few points to estimate bbox.")
-    points = np.ascontiguousarray(points, dtype=np.float64)
-    if use_oriented_bbox:
-        # 최소부피 OBB. open3d 의 PCA 축 OBB 는 등방적인 물체를 크게 부풀린다 (_obb.py 참고).
-        return obb(points, method=obb_method)
-    bbox_min = points.min(axis=0)
-    bbox_max = points.max(axis=0)
-    return 0.5 * (bbox_min + bbox_max), bbox_max - bbox_min, np.eye(3)
-
-
-def median_pairwise_distance(points: np.ndarray, n_pairs: int = 5000, seed: int = 0) -> float:
-    if len(points) < 2:
-        return 0.0
-    rng = np.random.default_rng(seed)
-    i = rng.integers(0, len(points), size=n_pairs)
-    j = rng.integers(0, len(points), size=n_pairs)
-    d = np.linalg.norm(points[i] - points[j], axis=1)
-    d = d[d > 1e-9]
-    if len(d) == 0:
-        return 0.0
-    return float(np.median(d))
-
-
-def mad_filter(values: List[float], z_thresh: float = 2.5) -> Tuple[List[float], List[bool]]:
-    if not values:
-        return [], []
-    arr = np.asarray(values, dtype=np.float64)
-    med = np.median(arr)
-    mad = np.median(np.abs(arr - med))
-    if mad < 1e-12:
-        mask = np.ones(len(arr), dtype=bool)
-    else:
-        robust_z = 0.6745 * np.abs(arr - med) / mad
-        mask = robust_z <= z_thresh
-    return arr[mask].tolist(), mask.tolist()
-
-
-def chamfer_score(
-    mesh_pts_centered: np.ndarray,
-    cloud_pts_centered: np.ndarray,
-    scale: float,
-    max_points: int = 12000,
-    seed: int = 0,
-) -> float:
-    """낮을수록 좋음. scale만 적용하고 중심은 각 point cloud median으로 제거한 상태에서 비교."""
-    if scale <= 0 or not np.isfinite(scale):
-        return float("inf")
-    mp = sample_points(mesh_pts_centered, max_points, seed=seed) * scale
-    cp = sample_points(cloud_pts_centered, max_points, seed=seed + 1)
-    if len(mp) == 0 or len(cp) == 0:
-        return float("inf")
-    tree_c = cKDTree(cp)
-    tree_m = cKDTree(mp)
-    d_m2c, _ = tree_c.query(mp, k=1, workers=-1)
-    d_c2m, _ = tree_m.query(cp, k=1, workers=-1)
-    # Partial-view aware:
-    #   - mesh는 360° 완성형이지만 cloud는 보이는 면만 → m2c는 unfair (mesh의 hidden side는 cloud 없음)
-    #   - m2c는 25% 가장 가까운 mesh point만 사용 (cloud와 매칭되는 visible side)
-    #   - c2m은 median (cloud 점들이 mesh 표면에 얼마나 가까운지 = coverage)
-    return float(0.5 * np.percentile(d_m2c, 25) + 1.0 * np.median(d_c2m))
-
-
-def umeyama_similarity(src: np.ndarray, dst: np.ndarray, estimate_scale: bool = True) -> Tuple[float, np.ndarray, np.ndarray]:
-    """dst ≈ s R src + t. correspondence가 이미 맞춰져 있다고 가정."""
-    if len(src) != len(dst) or len(src) < 3:
-        raise ValueError("src/dst must have same length >= 3")
-    mu_src = src.mean(axis=0)
-    mu_dst = dst.mean(axis=0)
-    xs = src - mu_src
-    yd = dst - mu_dst
-    cov = (yd.T @ xs) / len(src)
-    U, D, Vt = np.linalg.svd(cov)
-    S = np.eye(3)
-    if np.linalg.det(U @ Vt) < 0:
-        S[-1, -1] = -1
-    R = U @ S @ Vt
-    if estimate_scale:
-        var_src = np.mean(np.sum(xs * xs, axis=1))
-        scale = float(np.trace(np.diag(D) @ S) / max(var_src, 1e-12))
-    else:
-        scale = 1.0
-    t = mu_dst - scale * (R @ mu_src)
-    return scale, R, t
-
-
-def sim3_icp_refine(
-    mesh_pts: np.ndarray,
-    cloud_pts: np.ndarray,
-    init_scale: float,
-    max_iter: int = 20,
-    max_correspondence_dist: float = 0.03,
-    trim_quantile: float = 0.85,
-    seed: int = 0,
-) -> Tuple[float, np.ndarray, np.ndarray, dict]:
-    """
-    단순 Sim(3) ICP. SAM3D shape가 완전하지 않을 수 있으므로 final pose로 쓰기보다 scale refinement용으로 사용.
-    반환: scale, R, t, report. cloud ≈ s R mesh + t
-    """
-    src = sample_points(mesh_pts, 15000, seed=seed)
-    dst = sample_points(cloud_pts, 15000, seed=seed + 1)
-    _, src_center = center_points(src)
-    _, dst_center = center_points(dst)
-
-    s = float(init_scale)
-    R = np.eye(3)
-    t = dst_center - s * src_center
-    tree = cKDTree(dst)
-    prev_err = float("inf")
-    used = 0
-
-    for it in range(max_iter):
-        transformed = (s * (R @ src.T)).T + t
-        d, idx = tree.query(transformed, k=1, workers=-1)
-        valid = d < max_correspondence_dist
-        if valid.sum() < 20:
-            # 거리 threshold가 너무 빡빡할 때 trimmed nearest만 사용
-            q = np.quantile(d, min(max(trim_quantile, 0.1), 0.95))
-            valid = d <= q
-        src_corr = src[valid]
-        dst_corr = dst[idx[valid]]
-        if len(src_corr) < 20:
-            break
-        # 추가 trim
-        d_valid = d[valid]
-        keep_th = np.quantile(d_valid, min(max(trim_quantile, 0.1), 0.95))
-        keep = d_valid <= keep_th
-        src_corr = src_corr[keep]
-        dst_corr = dst_corr[keep]
-        used = len(src_corr)
-        if used < 20:
-            break
-        s_new, R_new, t_new = umeyama_similarity(src_corr, dst_corr, estimate_scale=True)
-        if not np.isfinite(s_new) or s_new <= 0:
-            break
-        transformed_new = (s_new * (R_new @ src_corr.T)).T + t_new
-        err = float(np.median(np.linalg.norm(transformed_new - dst_corr, axis=1)))
-        s, R, t = s_new, R_new, t_new
-        if abs(prev_err - err) < 1e-6:
-            prev_err = err
-            break
-        prev_err = err
-
-    report = {
-        "iterations": it + 1 if 'it' in locals() else 0,
-        "median_nn_error_m": prev_err,
-        "used_correspondences": used,
-        "init_scale": init_scale,
-        "refined_scale": s,
-    }
-    return float(s), R, t, report
-
-
-# ============================================================
-# Scale estimation
-# ============================================================
-
-def make_scale_candidates(
-    mesh_pts: np.ndarray,
-    cloud_pts: np.ndarray,
-    view_clouds: List[ViewCloud],
-    scale_mode: str,
-    seed: int = 0,
-) -> List[ScaleCandidate]:
-    mesh_centered, _ = center_points(mesh_pts)
-    cloud_centered, _ = center_points(cloud_pts)
-    candidates: List[ScaleCandidate] = []
-
-    mesh_extent = robust_extent(mesh_centered)
-    cloud_extent = robust_extent(cloud_centered)
-    axis_ratios = cloud_extent / np.maximum(mesh_extent, 1e-9)
-    valid = np.isfinite(axis_ratios) & (axis_ratios > 0)
-    if valid.any():
-        if scale_mode == "mean":
-            bbox_s = float(np.mean(axis_ratios[valid]))
-        elif scale_mode == "max":
-            bbox_s = float(np.max(axis_ratios[valid]))
-        else:
-            bbox_s = float(np.median(axis_ratios[valid]))
-        candidates.append(ScaleCandidate("global_robust_bbox", bbox_s, float("inf"), {
-            "axis_ratios": axis_ratios.tolist(),
-            "mesh_extent": mesh_extent.tolist(),
-            "cloud_extent": cloud_extent.tolist(),
-        }))
-
-    mesh_pair = median_pairwise_distance(mesh_centered, seed=seed)
-    cloud_pair = median_pairwise_distance(cloud_centered, seed=seed + 11)
-    if mesh_pair > 0 and cloud_pair > 0:
-        candidates.append(ScaleCandidate("global_pairwise_median", cloud_pair / mesh_pair, float("inf"), {
-            "mesh_pairwise_median": mesh_pair,
-            "cloud_pairwise_median": cloud_pair,
-        }))
-
-    view_scales = []
-    view_details = []
-    for k, vc in enumerate(view_clouds):
-        if len(vc.points) < 50:
-            continue
-        vc_centered, _ = center_points(vc.points)
-        vc_extent = robust_extent(vc_centered)
-        ratios = vc_extent / np.maximum(mesh_extent, 1e-9)
-        ratios = ratios[np.isfinite(ratios) & (ratios > 0)]
-        if len(ratios) == 0:
-            continue
-        view_bbox_s = float(np.median(ratios))
-        vc_pair = median_pairwise_distance(vc_centered, seed=seed + 100 + k)
-        if mesh_pair > 0 and vc_pair > 0:
-            view_pair_s = float(vc_pair / mesh_pair)
-            # partial view는 pairwise가 더 안정적인 경우가 많지만, 너무 작게 나올 수 있어 bbox와 median 조합
-            view_s = float(np.median([view_bbox_s, view_pair_s]))
-        else:
-            view_pair_s = None
-            view_s = view_bbox_s
-        view_scales.append(view_s)
-        view_details.append({
-            "cam_id": vc.cam_id,
-            "scale": view_s,
-            "bbox_scale": view_bbox_s,
-            "pairwise_scale": view_pair_s,
-            "clean_points": len(vc.points),
-        })
-
-    kept_scales, keep_mask = mad_filter(view_scales, z_thresh=2.5)
-    if kept_scales:
-        candidates.append(ScaleCandidate("view_voting_mad_median", float(np.median(kept_scales)), float("inf"), {
-            "all_view_scales": view_details,
-            "keep_mask": keep_mask,
-            "kept_scales": kept_scales,
-        }))
-
-    # 후보 주변을 grid search — 더 넓게 (0.5x ~ 2.0x) 진짜 scale이 후보 안에 들어오도록
-    base_scales = [c.scale for c in candidates if c.scale > 0 and np.isfinite(c.scale)]
-    grid = []
-    for s in base_scales:
-        for f in [0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95, 1.0, 1.05, 1.1, 1.15, 1.2, 1.4, 1.6, 1.8, 2.0]:
-            grid.append(s * f)
-    for s in sorted(set(round(x, 10) for x in grid)):
-        if s > 0:
-            candidates.append(ScaleCandidate("grid_chamfer_probe", float(s), float("inf"), {}))
-
-    for c in candidates:
-        c.score = chamfer_score(mesh_centered, cloud_centered, c.scale, seed=seed)
-
-    # 중복 scale 후보 정리
-    unique: Dict[str, ScaleCandidate] = {}
-    for c in sorted(candidates, key=lambda x: x.score):
-        key = f"{c.name}:{c.scale:.8f}"
-        unique.setdefault(key, c)
-    return sorted(unique.values(), key=lambda x: x.score)
-
-
-def score_candidate_by_iou(
-    mesh_path_for_eval: trimesh.Trimesh,
-    scale: float,
-    center_world: np.ndarray,
-    cameras: Dict[str, CameraPacket],
-    masks: Dict[str, np.ndarray],
-) -> float:
-    """후보 scale로 mesh를 cloud_center에 두고 cam들에 projection → mean IoU."""
-    m = mesh_path_for_eval.copy()
-    m.apply_scale(scale)
-    m.apply_translation(-m.bounding_box.centroid)
-    m.apply_translation(center_world)
-    ious = evaluate_silhouette_iou(m, cameras, masks)
-    if not ious:
-        return 0.0
-    return float(np.mean(list(ious.values())))
-
-
-def estimate_final_scale(
-    mesh: trimesh.Trimesh,
-    cloud_pts: np.ndarray,
-    view_clouds: List[ViewCloud],
-    scale_method: str,
-    scale_mode: str,
-    refine_sim3_icp: bool,
-    icp_max_iter: int,
-    icp_max_corr: float,
-    seed: int = 0,
-    icp_accept_error_m: float = 0.005,
-    # IoU 기반 선택 (가장 정직한 metric — 실측 마스크와 직접 비교)
-    iou_eval_cameras: Optional[Dict[str, CameraPacket]] = None,
-    iou_eval_masks: Optional[Dict[str, np.ndarray]] = None,
-    iou_eval_center_world: Optional[np.ndarray] = None,
-    iou_eval_mesh: Optional[trimesh.Trimesh] = None,
-) -> Tuple[float, dict, Optional[Tuple[np.ndarray, np.ndarray]]]:
-    mesh_pts = sample_mesh_surface(mesh, n=30000, seed=seed)
-    candidates = make_scale_candidates(mesh_pts, cloud_pts, view_clouds, scale_mode=scale_mode, seed=seed)
-    if not candidates:
-        raise RuntimeError("No valid scale candidates were generated.")
-
-    # IoU 평가용 데이터가 있으면 각 candidate 별 IoU도 계산
-    iou_table = {}
-    if (iou_eval_cameras is not None and iou_eval_masks is not None
-            and iou_eval_center_world is not None and iou_eval_mesh is not None):
-        for c in candidates:
-            if c.scale <= 0 or not np.isfinite(c.scale):
-                continue
-            iou_table[(c.name, round(c.scale, 8))] = score_candidate_by_iou(
-                iou_eval_mesh, c.scale, iou_eval_center_world,
-                iou_eval_cameras, iou_eval_masks,
-            )
-
-    if scale_method == "bbox":
-        selected = next((c for c in candidates if c.name == "global_robust_bbox"), candidates[0])
-    elif scale_method == "pairwise":
-        selected = next((c for c in candidates if c.name == "global_pairwise_median"), candidates[0])
-    elif scale_method == "view_voting":
-        selected = next((c for c in candidates if c.name == "view_voting_mad_median"), candidates[0])
-    elif scale_method == "iou":
-        if not iou_table:
-            print("[WARN] scale_method=iou but no IoU eval data provided. Falling back to auto.")
-            selected = candidates[0]
-        else:
-            # IoU 가장 높은 candidate 선택. 동률시 chamfer 낮은 쪽.
-            best_key = max(iou_table.keys(), key=lambda k: (iou_table[k], -next(
-                c.score for c in candidates if c.name == k[0] and round(c.scale, 8) == k[1]
-            )))
-            selected = next(c for c in candidates if c.name == best_key[0] and round(c.scale, 8) == best_key[1])
-            print(f"[IoU select] best={selected.name} scale={selected.scale:.5g} IoU={iou_table[best_key]:.3f}")
-    else:
-        selected = candidates[0]
-
-    final_scale = selected.scale
-    sim3_pose = None
-    icp_report = None
-    if refine_sim3_icp:
-        refined_scale, R, t, icp_report = sim3_icp_refine(
-            mesh_pts=mesh_pts,
-            cloud_pts=cloud_pts,
-            init_scale=final_scale,
-            max_iter=icp_max_iter,
-            max_correspondence_dist=icp_max_corr,
-            seed=seed,
-        )
-        # ICP 채택 규칙:
-        #   (a) ratio가 합리적 범위 (0.3~3.0)
-        #   (b) ICP 결과의 chamfer가 selected candidate보다 나쁘지 않음 (coverage-aware)
-        #   둘 다 만족해야 채택. tiny-mesh-in-cloud 방지.
-        ratio = refined_scale / max(final_scale, 1e-12)
-        med_err = icp_report.get("median_nn_error_m", float("inf"))
-        mesh_centered_chk = mesh_pts - np.median(mesh_pts, axis=0)
-        cloud_centered_chk = cloud_pts - np.median(cloud_pts, axis=0)
-        icp_chamfer = chamfer_score(mesh_centered_chk, cloud_centered_chk, refined_scale, seed=seed)
-        icp_report["icp_coverage_chamfer_m"] = float(icp_chamfer)
-        accept_by_ratio = np.isfinite(refined_scale) and 0.3 <= ratio <= 3.0
-        # coverage chamfer가 selected의 1.5배 이상 나빠지면 거부
-        accept_by_chamfer = icp_chamfer <= max(selected.score * 1.5, selected.score + 0.005)
-        if (np.isfinite(refined_scale) and refined_scale > 0
-                and accept_by_ratio and accept_by_chamfer):
-            final_scale = refined_scale
-            sim3_pose = (R, t)
-            icp_report["accepted"] = True
-            icp_report["accept_reason"] = (
-                f"ratio={ratio:.3f}, icp_chamfer={icp_chamfer:.4f}m vs selected={selected.score:.4f}m"
-            )
-        else:
-            icp_report["accepted"] = False
-            reasons = []
-            if not accept_by_ratio:
-                reasons.append(f"bad_ratio({ratio:.3f})")
-            if not accept_by_chamfer:
-                reasons.append(f"worse_chamfer(icp={icp_chamfer:.4f} vs selected={selected.score:.4f})")
-            icp_report["warning"] = "Rejected: " + ", ".join(reasons)
-
-    # IoU table을 후보별로 첨부 (디버깅/비교용)
-    candidates_with_iou = []
-    for c in candidates[:30]:
-        iou_val = iou_table.get((c.name, round(c.scale, 8)), None)
-        candidates_with_iou.append({
-            "name": c.name,
-            "scale": c.scale,
-            "chamfer_score_m": c.score,
-            "iou_mean": iou_val,
-        })
-
-    report = {
-        "scale_method": scale_method,
-        "scale_mode": scale_mode,
-        "selected_candidate": {
-            "name": selected.name,
-            "scale": selected.scale,
-            "score_m": selected.score,
-            "iou_mean": iou_table.get((selected.name, round(selected.scale, 8))),
-            "details": selected.details,
-        },
-        "final_scale": final_scale,
-        "candidates_top30": candidates_with_iou,
-        "sim3_icp_report": icp_report,
-    }
-    return final_scale, report, sim3_pose
-
-
-def evaluate_silhouette_iou(
-    mesh_world: trimesh.Trimesh,
-    cameras: Dict[str, CameraPacket],
-    masks: Dict[str, np.ndarray],
-) -> Dict[str, float]:
-    """mesh를 각 cam pose로 projection → 마스크와 IoU."""
-    out = {}
-    verts = np.asarray(mesh_world.vertices)
-    faces = np.asarray(mesh_world.faces, dtype=np.int32)
-    for cam_id, cam in cameras.items():
-        if cam_id not in masks:
-            continue
-        mask_gt = masks[cam_id]
-        H, W = mask_gt.shape
-        T_w2c = np.linalg.inv(cam.T_cam_to_world)
-        Vh = np.hstack([verts, np.ones((len(verts), 1))])
-        Vc = (T_w2c @ Vh.T).T[:, :3]
-        z = Vc[:, 2]
-        fx, fy = cam.K[0, 0], cam.K[1, 1]
-        cx, cy = cam.K[0, 2], cam.K[1, 2]
-        u = fx * Vc[:, 0] / np.where(z > 1e-6, z, 1e-6) + cx
-        v = fy * Vc[:, 1] / np.where(z > 1e-6, z, 1e-6) + cy
-        u[z <= 1e-6] = -1e6
-        v[z <= 1e-6] = -1e6
-        silh = np.zeros((H, W), dtype=np.uint8)
-        pts2d = np.stack([u, v], axis=1).astype(np.int32)
-        for tri in faces:
-            cv2.fillConvexPoly(silh, pts2d[tri], 255)
-        pr = silh > 0
-        gt = mask_gt > 0
-        inter = int(np.logical_and(gt, pr).sum())
-        union = int(np.logical_or(gt, pr).sum())
-        out[cam_id] = float(inter / union) if union > 0 else 0.0
-    return out
-
-
-def export_scaled_mesh(
-    mesh_path: str | Path,
-    out_glb_path: str | Path,
-    scale: float,
-    center_mesh: bool = True,
-    apply_world_pose: bool = False,
-    world_center: Optional[np.ndarray] = None,
-    world_R: Optional[np.ndarray] = None,
-    sim3_R: Optional[np.ndarray] = None,
-) -> trimesh.Trimesh:
-    """
-    sim3_R: ICP Sim3에서 추정한 mesh→cloud 회전. 주어지면 mesh를 cloud 방향에 정렬한 뒤 centering.
-            (export는 항상 origin-centered. apply_world_pose=True면 world_center로 translate.)
-    """
-    mesh = load_mesh_any(mesh_path)
-    mesh.apply_scale(scale)
-    if sim3_R is not None:
-        T_rot = np.eye(4)
-        T_rot[:3, :3] = sim3_R
-        mesh.apply_transform(T_rot)
-    if center_mesh:
-        mesh.apply_translation(-mesh.bounding_box.centroid)
-    if apply_world_pose:
-        if world_center is None:
-            raise ValueError("world_center is required when apply_world_pose=True")
-        if world_R is not None and sim3_R is None:
-            # sim3_R이 이미 적용됐으면 world_R(bbox-oriented)는 추가 적용 안 함
-            T = np.eye(4)
-            T[:3, :3] = world_R
-            mesh.apply_transform(T)
-        mesh.apply_translation(world_center)
-    mesh.export(str(out_glb_path))
-    return mesh
 
 
 # ============================================================
@@ -1394,11 +832,6 @@ def main() -> None:
     parser.add_argument("--cams_for_cloud", default="",
                         help="콤마 구분 cam id (예: cam0). 비우면 모든 cam 사용. "
                              "마스크 품질이 들쭉날쭉할 때 좋은 cam만 골라 cloud 생성")
-    parser.add_argument("--use_oriented_bbox", action="store_true")
-    parser.add_argument("--obb_method", choices=["min_volume", "pca"], default="min_volume",
-                        help="OBB 축 결정 방식. min_volume=최소부피 상자(기본). "
-                             "pca=open3d 구 동작(등방적 물체를 부풀림, 옛 결과 재현용).")
-
     parser.add_argument("--obj_ids", default="", help="Comma-separated object ids. Empty = all detected. Single-object fallback id is 0.")
 
     parser.add_argument("--run_sam3d", action="store_true",
@@ -1417,20 +850,6 @@ def main() -> None:
                         help="멀티뷰 모드에서 SAM3D에 넣을 cam id. 비우면 객체 mask가 있는 첫 cam을 사용.")
     parser.add_argument("--sam3d_in_process", action="store_true",
                         help="멀티뷰 모드에서도 SAM3D를 같은 Python process에서 실행. 기본은 CUDA fault 격리를 위해 subprocess.")
-
-    parser.add_argument("--scale_method", choices=["auto", "bbox", "pairwise", "view_voting", "iou"],
-                        default="auto",
-                        help="auto=chamfer 최저, iou=실측 silhouette IoU 최고 (가장 정직, 추천)")
-    parser.add_argument("--scale_mode", choices=["mean", "median", "max"], default="median", help="Used for bbox axis ratio aggregation")
-    parser.add_argument("--refine_sim3_icp", action="store_true")
-    parser.add_argument("--icp_max_iter", type=int, default=20)
-    parser.add_argument("--icp_max_corr", type=float, default=0.03, help="meter")
-    parser.add_argument("--icp_accept_error_m", type=float, default=0.005,
-                        help="ICP median_nn_error가 이 값 미만이면 ratio 무시하고 무조건 채택 (default 5mm)")
-    parser.add_argument("--apply_world_pose", action="store_true", help="Usually keep False for FoundationPose mesh input")
-    parser.add_argument("--apply_sim3_rotation", action="store_true",
-                        help="ICP Sim3에서 추정한 회전 R을 export mesh에 적용해 cloud 방향과 정렬. sim 좌표계 맞출 때 권장.")
-    parser.add_argument("--seed", type=int, default=0)
 
     args = parser.parse_args()
     out_dir = Path(args.out_dir)
@@ -1540,32 +959,9 @@ def main() -> None:
         obj_out_dir_early.mkdir(parents=True, exist_ok=True)
         save_cloud_ply(obj_out_dir_early / f"{obj_tag}_cloud_clean.ply", cloud_pts)
 
-        center_world, bbox_extents_m, R_bbox_to_world = estimate_bbox_info(
-            cloud_pts, use_oriented_bbox=args.use_oriented_bbox, obb_method=args.obb_method)
-        bbox_info = {
-            "obj_id": obj_id,
-            "center_world_m": center_world.tolist(),
-            "bbox_extents_m": bbox_extents_m.tolist(),
-            "bbox_extents_mm_sorted_desc": sorted([float(e) * 1000.0 for e in bbox_extents_m], reverse=True),
-            "R_bbox_to_world": R_bbox_to_world.tolist(),
-            "use_oriented_bbox": bool(args.use_oriented_bbox),
-            "obb_method": str(args.obb_method) if args.use_oriented_bbox else "aabb",
-            "merged_clean_points": int(len(cloud_pts)),
-            "view_clouds": [
-                {"cam_id": vc.cam_id, "raw_count": vc.raw_count, "clean_count": vc.clean_count}
-                for vc in view_clouds
-            ],
-        }
-        # 객체별 출력 디렉토리 분리
+        # 객체별 출력 디렉토리
         obj_out_dir = out_dir / obj_tag
         obj_out_dir.mkdir(parents=True, exist_ok=True)
-
-        with open(obj_out_dir / f"{obj_tag}_bbox_metric.json", "w", encoding="utf-8") as f:
-            json.dump(bbox_info, f, indent=2)
-        # 옛 평탄 경로도 보존 (구버전 호환)
-        with open(out_dir / f"{obj_tag}_bbox_metric.json", "w", encoding="utf-8") as f:
-            json.dump(bbox_info, f, indent=2)
-        print(f"[{obj_tag}] bbox_extents_m={bbox_extents_m}, center={center_world}")
 
         mesh_path = resolve_sam3d_mesh_path(mesh_arg, obj_tag=obj_tag, num_objects=len(masks_by_obj_raw))
         sam3d_cam: Optional[str] = args.sam3d_cam.strip() or None
@@ -1620,87 +1016,16 @@ def main() -> None:
                 )
 
         if mesh_path is None:
-            print(f"[{obj_tag}] Skip mesh scaling: no SAM3D mesh provided/generated.")
-            continue
-
-        mesh = load_mesh_any(mesh_path)
-        final_scale, scale_report, sim3_pose = estimate_final_scale(
-            mesh=mesh,
-            cloud_pts=cloud_pts,
-            view_clouds=view_clouds,
-            scale_method=args.scale_method,
-            scale_mode=args.scale_mode,
-            refine_sim3_icp=args.refine_sim3_icp,
-            icp_max_iter=args.icp_max_iter,
-            icp_max_corr=args.icp_max_corr,
-            seed=args.seed,
-            icp_accept_error_m=args.icp_accept_error_m,
-            iou_eval_cameras=obj_cams,
-            iou_eval_masks=masks,
-            iou_eval_center_world=center_world,
-            iou_eval_mesh=mesh,
-        )
-
-        out_glb = obj_out_dir / f"{obj_tag}_scaled.glb"
-        sim3_R = sim3_pose[0] if (sim3_pose is not None and args.apply_sim3_rotation) else None
-        export_scaled_mesh(
-            mesh_path=mesh_path,
-            out_glb_path=out_glb,
-            scale=final_scale,
-            center_mesh=True,
-            apply_world_pose=args.apply_world_pose,
-            world_center=center_world,
-            world_R=R_bbox_to_world,
-            sim3_R=sim3_R,
-        )
-
-        # --- silhouette IoU 자체 평가 (mesh를 cloud 중심으로 옮겨서 cam pose에 projection) ---
-        scaled_mesh = load_mesh_any(out_glb)
-        mesh_world_for_iou = scaled_mesh.copy()
-        # export가 always origin-centered이므로 cloud_center로 translate해서 world 좌표로 옮김
-        if not args.apply_world_pose:
-            mesh_world_for_iou.apply_translation(center_world)
-        ious = evaluate_silhouette_iou(mesh_world_for_iou, obj_cams, masks)
-        mean_iou = float(np.mean(list(ious.values()))) if ious else 0.0
-        print(f"[{obj_tag}] silhouette IoU per cam: " +
-              ", ".join(f"{k}={v:.3f}" for k, v in ious.items()) +
-              f"  mean={mean_iou:.3f}")
-
-        scale_report.update({
-            "mesh_path": str(mesh_path),
-            "scaled_glb": str(out_glb),
-            "bbox_info": bbox_info,
-            "sam3d_cam": sam3d_cam,
-            "silhouette_iou_per_cam": ious,
-            "silhouette_iou_mean": mean_iou,
-            "foundationpose_note": "For FoundationPose, usually use obj*_scaled.glb centered at origin and provide RGB-D/mask for pose estimation. Do not enable --apply_world_pose unless you explicitly need world-placed visualization mesh.",
-        })
-        if sim3_pose is not None:
-            R_sim3, t_sim3 = sim3_pose
-            scale_report["sim3_pose_mesh_to_world"] = {
-                "R": R_sim3.tolist(),
-                "t_m": t_sim3.tolist(),
-                "warning": "This pose is for scale refinement/debug only. Use FoundationPose for final R,t."
-            }
-
-        report_path = obj_out_dir / f"{obj_tag}_scale_report.json"
-        with open(report_path, "w", encoding="utf-8") as f:
-            json.dump(scale_report, f, indent=2)
-
-        print(f"[{obj_tag}] final_scale={final_scale:.8f}")
-        print(f"[{obj_tag}] saved scaled mesh: {out_glb}")
-        print(f"[{obj_tag}] saved scale report: {report_path}")
+            print(f"[{obj_tag}] No SAM3D mesh provided/generated (cloud only).")
 
         results_summary[obj_id] = {
             "obj_tag": obj_tag,
-            "scaled_glb": str(out_glb),
-            "scale": final_scale,
-            "scale_report": str(report_path),
             "cloud_clean_ply": str(obj_out_dir / f"{obj_tag}_cloud_clean.ply"),
-            "sam3d_mesh": str(mesh_path),
+            "sam3d_mesh": None if mesh_path is None else str(mesh_path),
             "sam3d_cam": sam3d_cam,
-            "bbox_extents_m": bbox_extents_m.tolist(),
-            "center_world_m": center_world.tolist(),
+            "merged_clean_points": int(len(cloud_pts)),
+            "note": ("크기 추정은 하지 않는다. metric 크기는 CAD 가 있으면 "
+                     "Obj_Step3c_fit_cad_silhouette.py 로 구한다."),
         }
 
     if results_summary:
@@ -1709,7 +1034,7 @@ def main() -> None:
             json.dump(results_summary, f, indent=2)
         print(f"\nSaved summary: {summary_path}")
     else:
-        print("\nNo object produced scaled mesh. Check masks, depth, and --run_sam3d/--sam3d_mesh.")
+        print("\nNo object produced a cloud. Check masks and depth.")
 
 
 if __name__ == "__main__":

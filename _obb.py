@@ -20,6 +20,9 @@ open3d 의 ``get_oriented_bounding_box()`` 는 최소부피 상자가 아니다.
 껍질의 모든 면을 후보 축으로 놓고 회전 캘리퍼스로 부피를 최소화한다.
 ``trimesh.bounds.oriented_bounds`` 가 이걸 한다.
 
+이제 이 OBB 는 **크기 추정기가 아니라** Obj_Step3c 실루엣 정합의 초기 포즈/스케일을
+잡는 용도로만 쓰인다. 크기는 실루엣이 정한다.
+
 반환 규약은 open3d 와 동일하게 맞췄다: ``(center, extent, R)``,
 R 의 열이 상자 축(box -> world), extent 는 각 축의 전체 길이.
 """
@@ -70,16 +73,3 @@ def _pca_obb(pts: np.ndarray, reason: str = "") -> Tuple[np.ndarray, np.ndarray,
     lo, hi = local.min(axis=0), local.max(axis=0)
     center = mean + R @ (0.5 * (lo + hi))
     return center, hi - lo, R
-
-
-def obb(points: np.ndarray, method: str = "min_volume"):
-    """method: 'min_volume' (기본) | 'pca' (open3d 구 동작, 재현용)."""
-    if method == "min_volume":
-        return min_volume_obb(points)
-    if method == "pca":
-        import open3d as o3d
-        pcd = o3d.geometry.PointCloud()
-        pcd.points = o3d.utility.Vector3dVector(np.ascontiguousarray(points, dtype=np.float64))
-        b = pcd.get_oriented_bounding_box(robust=True)
-        return np.asarray(b.center), np.asarray(b.extent), np.asarray(b.R)
-    raise ValueError(f"unknown obb method: {method!r}")

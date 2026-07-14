@@ -118,7 +118,14 @@ def _axis_rotations() -> List[np.ndarray]:
 
 
 def render_silhouette(V, F, s, R, t, view: View, ss: int = 1) -> np.ndarray:
-    """포즈된 메시를 이진 실루엣으로 래스터화. 닫힌 메시면 삼각형들의 합집합 = 실루엣."""
+    """포즈된 메시를 이진 실루엣으로 래스터화. 실루엣 = 투영된 삼각형들의 합집합.
+
+    삼각형을 한 번의 ``cv2.fillPoly`` 호출로 모두 넘기면 안 된다. OpenCV 는 여러
+    폴리곤을 even-odd 규칙으로 채우므로 겹치는 부분(앞면과 뒷면)이 서로 상쇄되어
+    물체 내부가 뚫린다. 실측: 그렇게 그리면 IoU 0.85, 면적이 마스크의 85% 로 줄고
+    슈퍼샘플링을 올릴수록 더 심해진다 (ss=4 에서 IoU 0.67).
+    삼각형마다 따로 채워 진짜 합집합을 만든다 (ss=2 에서 3.3ms -> 4.0ms).
+    """
     Vw = (s * (R @ V.T)).T + t
     Vc = (view.W_c[:3, :3] @ Vw.T).T + view.W_c[:3, 3]
     K = view.K.copy()
@@ -128,8 +135,8 @@ def render_silhouette(V, F, s, R, t, view: View, ss: int = 1) -> np.ndarray:
         uv = uv[:, :2] / uv[:, 2:3]
     sil = np.zeros((view.shape[0] * ss, view.shape[1] * ss), np.uint8)
     ok = (Vc[:, 2][F] > 1e-6).all(axis=1) & np.isfinite(uv[F]).all(axis=(1, 2))
-    if ok.any():
-        cv2.fillPoly(sil, uv[F[ok]].astype(np.int32), 255)
+    for tri in uv[F[ok]].astype(np.int32):
+        cv2.fillConvexPoly(sil, tri, 255)
     return sil > 0
 
 
@@ -239,6 +246,18 @@ def fit_cad_to_views(
         "cloud_obb_extents_m": e_c,
         "n_fev": int(res.nfev),
     }
+
+
+def scale_cad_to_extents(mesh: trimesh.Trimesh, target_ext_desc: np.ndarray) -> np.ndarray:
+    """CAD 정점을 OBB 축별로 비균등 스케일해 target extents(내림차순)를 갖게 한다.
+
+    반환된 정점은 여전히 CAD 좌표계이므로, fit 이 준 (R, t) 를 그대로 적용하면
+    실측 크기의 물체를 같은 자리에 놓은 것이 된다. (균등 스케일 s 인 경우와 일치)
+    """
+    V = np.asarray(mesh.vertices, dtype=np.float64)
+    _, R_m, e_m = obb_frame(V)
+    f = np.asarray(target_ext_desc, dtype=np.float64) / e_m
+    return ((V @ R_m) * f) @ R_m.T
 
 
 def cloud_from_masked_depth(K, T_cam_to_world, depth_u16, mask, depth_scale=0.001,
