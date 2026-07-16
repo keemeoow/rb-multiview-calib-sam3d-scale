@@ -1,0 +1,49 @@
+{
+  "obj1": {
+    "gt_extents_mm_sorted_desc": [
+      null,
+      68.0,
+      65.0
+    ],
+    "gt_source": "manual",
+    "gt_tol_mm": 0.5,
+    "gt_note": null,
+    "gt_undetermined_axes": [
+      0
+    ],
+    "estimates_mm_sorted_desc": {
+      "oracle": [
+        115.09979780433474,
+        68.02699372836923,
+        65.10076150047408
+      ],
+      "baseline": [
+        117.30750831475608,
+        69.0904286220488,
+        67.02256333301595
+      ]
+    },
+    "errors_mm": {
+      "oracle": [
+        null,
+        0.026993728369234304,
+        0.1007615004740785
+      ],
+      "baseline": [
+        null,
+        1.0904286220488046,
+        2.0225633330159525
+      ]
+    },
+    "mean_abs_error_mm": {
+      "oracle": 0.0638776144216564,
+      "baseline": 1.5564959775323786
+    },
+    "oracle_mask_pm1px": {
+      "erode1px": null,
+      "dilate1px": null
+    },
+    "baseline_mean_iou": 0.964022310285603,
+    "baseline_shape_ok_by_iou": true
+  }
+}

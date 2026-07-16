@@ -2,19 +2,23 @@
 """
 Obj_Step3c_cad_scale.py
 
-CAD (또는 형상만 아는 메시) 가 있을 때의 **최선의 크기 추정** (경로 1).
+**oracle (정답값) 경로 — 운용 baseline 이 아니다.**
+정답 CAD 를 넣었을 때의 크기 추정. 즉 "형상이 완벽히 주어지면 얼마나 정확한가" 의
+**상한**이며, 피규어 생성과 baseline 비교의 기준값으로 쓴다.
+
+실제 운용 baseline 은 Obj_Step3_sam3d_scale.py --estimate_size 다 (SAM3D 로 단서 CAD 를
+직접 만들어 크기 추정, 원본 CAD 불필요). 정합 엔진(_silhouette_fit.fit_cad_to_views)은
+둘이 **완전히 같고**, 차이는 단서 메시의 형상이 참값이냐 추정치냐 뿐이다. 그래서 이
+스크립트의 결과가 baseline 이 도달할 수 있는 정확도 상한이 된다.
+
 다중뷰 SAM 마스크의 실루엣에 CAD 를 맞춰 스케일 + 6-DoF 포즈를 구한다.
 depth 는 기본적으로 초기값에만 쓴다 (근거는 _silhouette_fit.py 상단 참고).
 다양한 색/재질 물체에는 --w_depth auto 를 권장한다: 카메라 간 depth 일치도로 depth 를
 신뢰할 만할 때(흰/무광)만 손실에 섞고, 편향될 때(검은/광택)는 자동으로 0 이 된다.
 
-원본 CAD 가 없으면(경로 2) Obj_Step3_sam3d_scale.py --estimate_size 가 SAM3D 로 메시를
-만들어 **같은 엔진**(_silhouette_fit.fit_cad_to_views)으로 크기를 구한다. 차이는 SAM3D
-형상이 추정치라 per-view IoU 가 곧 치수 신뢰도라는 점. CAD 가 있으면 이 경로 1 이 더 정확하다.
-
   점군 최소부피 OBB   3.37 mm   (제거됨)
   메시 depth-ICP      0.79 mm
-  메시 실루엣 정합    0.28 mm   <- 이 스크립트
+  메시 실루엣 정합    0.28 mm   <- 이 스크립트 (정답 CAD 기준 = 상한)
   (참값 아는 합성 실험, 실제 카메라 배치, depth 편향 3mm 주입, 평균 |치수 오차|)
 
 [실행]

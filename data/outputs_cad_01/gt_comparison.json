@@ -1,0 +1,45 @@
+{
+  "obj1": {
+    "gt_extents_mm_sorted_desc": [
+      150.0,
+      100.0,
+      50.0
+    ],
+    "gt_source": "manual",
+    "gt_tol_mm": 0.5,
+    "estimates_mm_sorted_desc": {
+      "oracle": [
+        149.45699135923962,
+        99.63799423949308,
+        49.81899711974655
+      ],
+      "baseline": [
+        150.6115997151543,
+        99.77380689541474,
+        50.142887554614155
+      ]
+    },
+    "errors_mm": {
+      "oracle": [
+        -0.5430086407603767,
+        -0.3620057605069178,
+        -0.1810028802534518
+      ],
+      "baseline": [
+        0.6115997151543127,
+        -0.22619310458526343,
+        0.14288755461415548
+      ]
+    },
+    "mean_abs_error_mm": {
+      "oracle": 0.3620057605069154,
+      "baseline": 0.32689345811791054
+    },
+    "oracle_mask_pm1px": {
+      "erode1px": null,
+      "dilate1px": null
+    },
+    "baseline_mean_iou": 0.9772248721374382,
+    "baseline_shape_ok_by_iou": true
+  }
+}

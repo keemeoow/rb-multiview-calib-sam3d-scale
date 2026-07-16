@@ -1,0 +1,4 @@
+object,axis,gt_mm,baseline_mm,baseline_err_mm,oracle_mm,oracle_err_mm
+obj1,L1,,117.308,,115.100,
+obj1,L2,68.000,69.090,+1.090,68.027,+0.027
+obj1,L3,65.000,67.023,+2.023,65.101,+0.101

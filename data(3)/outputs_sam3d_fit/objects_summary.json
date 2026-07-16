@@ -1,18 +1,18 @@
 {
-  "peg": {
-    "obj_tag": "objpeg",
-    "cloud_clean_ply": "data(3)/outputs_sam3d_fit/objpeg/objpeg_cloud_clean.ply",
-    "sam3d_mesh": "data(3)/outputs_sam3d_fit/objpeg/objpeg_sam3d_dec.glb",
+  "hole": {
+    "obj_tag": "objhole",
+    "cloud_clean_ply": "data(3)/outputs_sam3d_fit_aniso/objhole/objhole_cloud_clean.ply",
+    "sam3d_mesh": "data(3)/outputs_sam3d_fit/objhole/objhole_sam3d.glb",
     "sam3d_cam": null,
-    "merged_clean_points": 1123,
-    "sam3d_scaled_glb": "data(3)/outputs_sam3d_fit/objpeg/objpeg_sam3d_scaled.glb",
+    "merged_clean_points": 3954,
+    "sam3d_scaled_glb": "data(3)/outputs_sam3d_fit_aniso/objhole/objhole_sam3d_scaled.glb",
     "extents_mm_sorted_desc": [
-      39.32940806352507,
-      34.96796581472597,
-      33.302318022822774
+      51.03049042796988,
+      49.11978842493137,
+      49.067637238980474
     ],
-    "mean_iou": 0.8134257541624342,
-    "shape_ok_by_iou": false,
+    "mean_iou": 0.9753457962360804,
+    "shape_ok_by_iou": true,
     "note": "\ud06c\uae30\ub294 --estimate_size \uc77c \ub54c\ub9cc \ucd94\uc815\ud55c\ub2e4 (SAM3D \uba54\uc2dc\uc758 \ub2e4\uc911\ubdf0 \uc2e4\ub8e8\uc5e3 \uc815\ud569, \uacbd\ub85c 1 Obj_Step3c \uc640 \ub3d9\uc77c \uc5d4\uc9c4). CAD \uac00 \uc788\uc73c\uba74 Obj_Step3c \uac00 \ub354 \uc815\ud655\ud558\ub2e4."
   }
 }

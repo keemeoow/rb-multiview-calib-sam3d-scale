@@ -3,27 +3,30 @@
 Multi-cam object point cloud + SAM3D mesh
 ========================================
 
-이 스크립트는 **원본 CAD 가 없는 물체**용 크기 추정 경로다 (경로 2).
+이 스크립트가 **기본(baseline) 크기 추정 경로**다 — 원본 CAD 없이 돈다.
 멀티뷰 RGB-D + 마스크로 (a) 초기 점군을 만들고, (b) 지정 카메라의 RGB+mask 로 SAM3D
 메시를 생성한 뒤, (c) 그 SAM3D 메시를 다중뷰 실루엣에 정합해 metric 크기를 구한다
-(--estimate_size). 크기 추정 원리는 CAD 가 있을 때(Obj_Step3c_cad_scale.py,
-경로 1)와 **동일한 엔진**(_silhouette_fit.fit_cad_to_views) 이다.
+(--estimate_size). 즉 **단서 CAD 를 SAM3D 로 직접 만들어 쓴다.**
 
-경로 1 vs 경로 2 (원리는 같고, 메시 출처만 다르다)
-  경로 1  원본 CAD(형상 정확)      -> scale+6DoF 7개 추정, IoU 는 거의 항상 높음
-  경로 2  SAM3D 메시(형상 추정치)  -> 같은 7개 추정, **IoU 가 곧 형상/치수 신뢰도**
+baseline (이 스크립트)  vs  oracle (Obj_Step3c_cad_scale.py)
+  baseline  SAM3D 메시(형상 추정치)  -> scale+6DoF 7개 추정. **실제 운용 방법.**
+  oracle    원본 CAD(형상 정확)      -> 같은 7개 추정. 정답 CAD 를 넣었을 때의
+                                       **상한/기준값** — 피규어·비교용이지 운용 경로가 아니다.
+정합 엔진(_silhouette_fit.fit_cad_to_views)은 둘이 **완전히 같다**. 차이는 단서 메시의
+형상이 추정치냐 참값이냐 뿐이고, 그게 정확도 상한을 가른다.
+
 SAM3D 메시는 단일 뷰에서 만든 추정 형상이라, 다른 뷰의 실루엣이 형상을 검증한다.
 mean IoU 가 낮으면(--size_min_iou 미만) 형상이 관측과 어긋난 것이므로 치수를 신뢰하지
-말라고 경고한다.
+말라고 경고한다. baseline 에서는 **IoU 가 곧 형상/치수 신뢰도**다.
 
 크기는 여전히 **실루엣**이 정한다 — depth/점군 OBB 가 아니다. 검은 무광 물체에서
 depth 는 카메라 간 5~15mm 어긋나 mm 단위 크기에 쓸 수 없다. 점군은 정합의
 **초기 포즈 추정용**으로만 쓴다. (옛 점군 OBB / depth 스케일 경로는 제거되었다.)
 
-목적
+목적 (baseline full pipeline)
 ----
 1. 멀티 RGB-D 카메라 + SAM/SAM2 mask + calibration 으로 물체 point cloud 생성
-2. 지정 cam 의 원본 RGB + mask 로 SAM3D mesh 생성 (CAD 가 없는 물체용)
+2. 지정 cam 의 원본 RGB + mask 로 SAM3D mesh 생성 = **단서 CAD 를 직접 만든다**
 3. (--estimate_size) SAM3D 메시를 다중뷰 실루엣에 정합해 metric 크기 + 실척 glb 생성
    출력: <obj>_sam3d_scaled.glb (실척·meter·원점중심, FoundationPose/Isaac 입력),
          <obj>_size.json (scale, 치수, per-view IoU), <obj>_size_overlay.jpg
