@@ -80,7 +80,7 @@ import trimesh
 from sklearn.neighbors import LocalOutlierFactor
 
 # 경로 1(Obj_Step3c)과 동일한 다중뷰 실루엣 정합 엔진을 재사용한다.
-from _silhouette_fit import View, fit_cad_to_views, obb_frame, render_silhouette
+from _silhouette_fit import View, fit_cad_to_views, fit_mesh_aniso, obb_frame, render_silhouette
 
 
 # ============================================================
@@ -909,6 +909,8 @@ def estimate_size_silhouette(
     min_iou: float,
     save_overlay: bool,
     decimate_faces: int = 30000,
+    anisotropic: bool = True,
+    aniso_reg: float = 0.0,
 ) -> Optional[dict]:
     """SAM3D 메시를 다중뷰 실루엣에 정합해 metric 크기를 구한다 (경로 1과 동일 엔진).
 
@@ -929,12 +931,27 @@ def estimate_size_silhouette(
     # 정합 전 감산: SAM3D 고밀도 메시(0.5~1.2M face)를 그대로 넣으면 물체당 1시간+ 걸린다.
     # 정합·저장·오버레이 모두 같은 감산 메시를 써서 치수 일관성 검사를 유지한다.
     mesh = decimate_mesh(mesh, decimate_faces, obj_tag=obj_tag)
-    fit = fit_cad_to_views(mesh, np.asarray(init_cloud, dtype=np.float64), views,
-                           w_depth=w_depth, max_fev=max_fev)
+    cloud = np.asarray(init_cloud, dtype=np.float64)
+    if anisotropic:
+        # 축별(비등방) 스케일: SAM3D 형상의 비율 오류(예: peg 가 너무 짧고 뚱뚱)를 교정.
+        # 등방 fit 에서 warm-start 하므로 등방보다 나빠지지 않고, 형상이 맞으면 등방으로
+        # 자동 수렴한다. 스케일이 정점에 이미 반영된 메시를 만들어 이후 단계는 s=1 로 취급.
+        fit = fit_mesh_aniso(mesh, cloud, views, w_depth=w_depth, max_fev=max_fev,
+                             aniso_reg=aniso_reg)
+        render_mesh = trimesh.Trimesh(vertices=np.asarray(fit["V_scaled_meshframe"]),
+                                      faces=np.asarray(mesh.faces), process=False)
+        export_scale = 1.0
+        print(f"[{obj_tag}] anisotropic scale_vec = "
+              f"{[round(v, 4) for v in fit['scale_vec']]}")
+    else:
+        fit = fit_cad_to_views(mesh, cloud, views, w_depth=w_depth, max_fev=max_fev)
+        render_mesh = mesh
+        export_scale = fit["scale"]
+    fit_render = {**fit, "scale": export_scale}   # export/overlay 는 s=export_scale 로 렌더
     ext = np.sort(fit["extents_m"])[::-1] * 1000.0
 
     scaled_glb = obj_out_dir / f"{obj_tag}_sam3d_scaled.glb"
-    Vs = export_scaled_mesh(mesh, fit["scale"], scaled_glb)
+    Vs = export_scaled_mesh(render_mesh, export_scale, scaled_glb)
     _, _, e_saved = obb_frame(Vs)
     if not np.allclose(np.sort(e_saved)[::-1] * 1000.0, ext, atol=1e-3):
         raise RuntimeError(f"{obj_tag}: 저장된 glb 치수가 보고값과 다릅니다 "
@@ -957,18 +974,21 @@ def estimate_size_silhouette(
         "obj": obj_tag,
         "mesh_source": "sam3d",
         "mesh": str(mesh_path),
-        "method": "sam3d_multiview_silhouette" if w_depth == 0 else "sam3d_silhouette_plus_depth",
+        "method": ("sam3d_anisotropic_silhouette" if anisotropic
+                   else "sam3d_multiview_silhouette") + ("" if w_depth == 0 else "_plus_depth"),
+        "anisotropic": bool(anisotropic),
         "shape_trusted": False,
         "shape_ok_by_iou": shape_ok,
         "min_iou_threshold": float(min_iou),
         "w_depth": float(w_depth),
         "scale_mesh_to_world": fit["scale"],
+        "scale_vec": fit.get("scale_vec"),
         "T_world_mesh_4x4": T.tolist(),
-        "extents_m": fit["extents_m"].tolist(),
+        "extents_m": np.asarray(fit["extents_m"]).tolist(),
         "extents_mm_sorted_desc": [float(x) for x in ext],
         "per_view_iou": fit["per_view_iou"],
         "mean_iou": mean_iou,
-        "depth_rms_mm": fit["depth_rms_mm"],
+        "depth_rms_mm": fit.get("depth_rms_mm"),
         "cloud_obb_extents_mm_sorted_desc": [float(x) for x in np.sort(fit["cloud_obb_extents_m"])[::-1] * 1000.0],
         "init_cloud_points": int(len(init_cloud)),
         "scaled_glb": str(scaled_glb),
@@ -982,7 +1002,7 @@ def estimate_size_silhouette(
 
     if save_overlay:
         ov = obj_out_dir / f"{obj_tag}_size_overlay.jpg"
-        save_size_overlay(cam_meta, views, mesh, fit, obj_tag, ov)
+        save_size_overlay(cam_meta, views, render_mesh, fit_render, obj_tag, ov)
         print(f"[{obj_tag}] [SAVE] {ov}")
 
     return size_info
@@ -1063,6 +1083,12 @@ def main() -> None:
     parser.add_argument("--size_decimate_faces", type=int, default=30000,
                         help="크기 정합 전 SAM3D 메시를 이 면 수로 감산(quadric). SAM3D 고밀도 "
                              "메시로 인한 1시간+ 정합을 수 분으로 줄인다. 0=감산 안 함.")
+    parser.add_argument("--size_isotropic", action="store_true",
+                        help="크기 정합에 등방(단일 스칼라) 스케일 사용. 기본은 비등방(축별) 스케일 "
+                             "— SAM3D 형상 비율 오류를 교정해 더 정확(형상이 맞으면 자동으로 등방 수렴).")
+    parser.add_argument("--size_aniso_reg", type=float, default=0.0,
+                        help="비등방 스케일 정규화(log-scale 분산 페널티). 관측 나쁜 축의 과적합 억제. "
+                             "0=끔.")
     parser.add_argument("--size_save_overlay", action="store_true",
                         help="마스크 vs 정합된 SAM3D 실루엣 오버레이(<obj>_size_overlay.jpg) 저장.")
 
@@ -1250,6 +1276,8 @@ def main() -> None:
                     min_iou=args.size_min_iou,
                     save_overlay=args.size_save_overlay,
                     decimate_faces=args.size_decimate_faces,
+                    anisotropic=not args.size_isotropic,
+                    aniso_reg=args.size_aniso_reg,
                 )
 
         results_summary[obj_id] = {
