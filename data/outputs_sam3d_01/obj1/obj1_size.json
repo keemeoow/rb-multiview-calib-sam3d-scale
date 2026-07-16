@@ -1,0 +1,68 @@
+{
+  "obj": "obj1",
+  "mesh_source": "sam3d",
+  "mesh": "data/outputs_sam3d_01/obj1/obj1_sam3d.glb",
+  "method": "sam3d_anisotropic_silhouette",
+  "anisotropic": true,
+  "shape_trusted": false,
+  "shape_ok_by_iou": true,
+  "min_iou_threshold": 0.85,
+  "w_depth": 0.0,
+  "scale_mesh_to_world": 0.15341244375283003,
+  "scale_vec": [
+    0.15052155833573083,
+    0.15663262029663777,
+    0.15314430273023852
+  ],
+  "T_world_mesh_4x4": [
+    [
+      0.35399600162962636,
+      -0.06311773990761174,
+      0.9331146669832131,
+      0.06138516754324016
+    ],
+    [
+      0.4248528198465221,
+      0.8996866063394091,
+      -0.10031994737805588,
+      0.041853062964421366
+    ],
+    [
+      -0.8331787997175013,
+      0.43194925776349286,
+      0.3453012111459666,
+      0.5401260825161973
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "extents_m": [
+    0.1506115997151543,
+    0.09977380689541474,
+    0.05014288755461416
+  ],
+  "extents_mm_sorted_desc": [
+    150.6115997151543,
+    99.77380689541474,
+    50.142887554614155
+  ],
+  "per_view_iou": [
+    0.9806216213944026,
+    0.9794030405967636,
+    0.9716499544211485
+  ],
+  "mean_iou": 0.9772248721374382,
+  "depth_rms_mm": null,
+  "cloud_obb_extents_mm_sorted_desc": [
+    154.27318483333602,
+    101.49880301663491,
+    53.80841393104838
+  ],
+  "init_cloud_points": 13144,
+  "scaled_glb": "data/outputs_sam3d_01/obj1/obj1_sam3d_scaled.glb",
+  "note": "scale \uc740 \uc2e4\ub8e8\uc5e3\uc5d0\uc11c \ub098\uc628\ub2e4 (depth/\uc810\uad70 OBB \uc544\ub2d8). SAM3D \ud615\uc0c1\uc740 \ucd94\uc815\uce58\ub77c mean_iou \uac00 \uce58\uc218 \uc2e0\ub8b0\ub3c4\ub97c \ub098\ud0c0\ub0b8\ub2e4."
+}

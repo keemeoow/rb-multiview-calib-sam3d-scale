@@ -1,0 +1,96 @@
+{
+  "image": "data/outputs_sam3d_01/obj1/obj1_cam0_rgb.png",
+  "mask": "data/outputs_sam3d_01/obj1/obj1_cam0_mask.png",
+  "sam3d_glb": "data/outputs_sam3d_01/obj1/obj1_sam3d.glb",
+  "sam3d_gs_ply": null,
+  "seed": 42,
+  "export_key": "glb",
+  "output_summary": {
+    "output_keys": [
+      "6drotation_normalized",
+      "coords",
+      "coords_original",
+      "downsample_factor",
+      "gaussian",
+      "glb",
+      "gs",
+      "mesh",
+      "pointmap",
+      "pointmap_colors",
+      "rotation",
+      "scale",
+      "shape",
+      "translation",
+      "translation_scale"
+    ],
+    "6drotation_normalized": {
+      "type": "<class 'torch.Tensor'>"
+    },
+    "scale": {
+      "type": "<class 'torch.Tensor'>"
+    },
+    "shape": {
+      "type": "<class 'torch.Tensor'>"
+    },
+    "translation": {
+      "type": "<class 'torch.Tensor'>"
+    },
+    "translation_scale": {
+      "type": "<class 'torch.Tensor'>"
+    },
+    "coords_original": {
+      "type": "<class 'torch.Tensor'>"
+    },
+    "coords": {
+      "type": "<class 'torch.Tensor'>"
+    },
+    "downsample_factor": {
+      "type": "<class 'int'>"
+    },
+    "rotation": {
+      "type": "<class 'torch.Tensor'>"
+    },
+    "mesh": {
+      "type": "<class 'list'>"
+    },
+    "gaussian": {
+      "type": "<class 'list'>"
+    },
+    "glb": {
+      "type": "<class 'trimesh.base.Trimesh'>",
+      "vertices": 225324,
+      "faces": 450640
+    },
+    "gs": {
+      "type": "<class 'sam3d_objects.model.backbone.tdfy_dit.representations.gaussian.gaussian_model.Gaussian'>"
+    },
+    "pointmap": {
+      "type": "<class 'torch.Tensor'>"
+    },
+    "pointmap_colors": {
+      "type": "<class 'torch.Tensor'>"
+    }
+  },
+  "translation": [
+    [
+      -0.11207986623048782,
+      -0.0915672555565834,
+      0.8161084651947021
+    ]
+  ],
+  "scale": [
+    [
+      0.26076003909111023,
+      0.26076003909111023,
+      0.26076003909111023
+    ]
+  ],
+  "rotation": [
+    [
+      0.2276487797498703,
+      0.5074236989021301,
+      -0.7051999568939209,
+      -0.43976157903671265
+    ]
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "obj": "obj1",
+  "cad": "data/T_shape.glb",
+  "method": "cad_multiview_silhouette",
+  "w_depth": 0.0,
+  "w_depth_mode": "auto",
+  "depth_confidence": 0.0,
+  "cross_view_disagreement_mm": 9.389946116562742,
+  "scale_cad_to_world": 0.000996379942394931,
+  "T_world_cad_4x4": [
+    [
+      -0.05305202169405718,
+      0.9339439176976133,
+      0.35346038192392487,
+      0.06725378358637617
+    ],
+    [
+      0.895070930957628,
+      -0.11246486492506988,
+      0.43150861255834827,
+      0.03241053032803637
+    ],
+    [
+      0.44275671824244317,
+      0.33926451737990415,
+      -0.829979563421993,
+      0.4476666485647224
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "extents_m": [
+    0.14945699135923962,
+    0.09963799423949309,
+    0.04981899711974655
+  ],
+  "extents_mm_sorted_desc": [
+    149.45699135923962,
+    99.63799423949308,
+    49.81899711974655
+  ],
+  "mask_pm1px_spread_mm": null,
+  "extents_mm_mask_dilate1px": null,
+  "extents_mm_mask_erode1px": null,
+  "per_view_iou": [
+    0.9809487041761783,
+    0.981302910507058,
+    0.9796031828764029
+  ],
+  "mean_iou": 0.980618265853213,
+  "depth_rms_mm": 1.029041979491927,
+  "cloud_obb_extents_mm_sorted_desc": [
+    154.53063499046965,
+    101.7094589785045,
+    54.37355524867007
+  ],
+  "init_cloud_points": 8590,
+  "cameras": [
+    "cam0",
+    "cam1",
+    "cam2"
+  ],
+  "note": "depth is used only to initialise; the scale comes from the silhouettes. cloud_obb_* is the CAD-free estimate and overestimates on noisy clouds."
+}

@@ -1,0 +1,18 @@
+{
+  "obj1": {
+    "obj_tag": "obj1",
+    "cloud_clean_ply": "data/outputs_sam3d_02/obj1/obj1_cloud_clean.ply",
+    "sam3d_mesh": "data/outputs_sam3d_02/obj1/obj1_sam3d.glb",
+    "sam3d_cam": "cam0",
+    "merged_clean_points": 8487,
+    "sam3d_scaled_glb": "data/outputs_sam3d_02/obj1/obj1_sam3d_scaled.glb",
+    "extents_mm_sorted_desc": [
+      117.30750831475608,
+      69.0904286220488,
+      67.02256333301595
+    ],
+    "mean_iou": 0.964022310285603,
+    "shape_ok_by_iou": true,
+    "note": "\ud06c\uae30\ub294 --estimate_size \uc77c \ub54c\ub9cc \ucd94\uc815\ud55c\ub2e4 (SAM3D \uba54\uc2dc\uc758 \ub2e4\uc911\ubdf0 \uc2e4\ub8e8\uc5e3 \uc815\ud569, \uacbd\ub85c 1 Obj_Step3c \uc640 \ub3d9\uc77c \uc5d4\uc9c4). CAD \uac00 \uc788\uc73c\uba74 Obj_Step3c \uac00 \ub354 \uc815\ud655\ud558\ub2e4."
+  }
+}
