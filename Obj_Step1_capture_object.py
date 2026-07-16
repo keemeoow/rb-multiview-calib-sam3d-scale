@@ -173,6 +173,9 @@ def main() -> None:
                    help="warmup 끝나면 자동으로 한 번 저장하고 종료.")
     p.add_argument("--show", action="store_true",
                    help="프리뷰 창 표시. SPACE=저장, q/ESC=종료.")
+    p.add_argument("--preview_scale", type=float, default=0.5,
+                   help="미리보기 창 축소 배율 (0<scale<=1). 2x2 그리드 합성 후 적용. "
+                        "예: 720p 4패널(2560x1440)에 0.5 → 1280x720. 창은 드래그로도 조절 가능.")
 
     args = p.parse_args()
 
@@ -236,6 +239,7 @@ def main() -> None:
         print("\nControls:")
         print("  SPACE : save one frame")
         print("  ESC/q : quit\n")
+        cv2.namedWindow("capture_flat_for_im", cv2.WINDOW_NORMAL)  # 드래그로 창 크기 조절 가능
 
     try:
         while True:
@@ -269,7 +273,12 @@ def main() -> None:
                     panels.append(np.zeros((h0, w0, 3), dtype=np.uint8))
                 top = np.hstack(panels[0:2])
                 bot = np.hstack(panels[2:4])
-                cv2.imshow("capture_flat_for_im", np.vstack([top, bot]))
+                combined = np.vstack([top, bot])
+                s = args.preview_scale
+                if 0.0 < s < 1.0:
+                    combined = cv2.resize(combined, None, fx=s, fy=s,
+                                          interpolation=cv2.INTER_AREA)
+                cv2.imshow("capture_flat_for_im", combined)
 
             key = cv2.waitKey(1) & 0xFF if args.show else 255
             if args.show and (key == 27 or key == ord("q")):

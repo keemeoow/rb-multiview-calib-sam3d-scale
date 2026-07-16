@@ -1,7 +1,7 @@
 # Step1_dump_intrinsics.py
 
 """
-python Calib_Step1_dump_intrinsics.py
+python Calib_Step큐브를 EE가 잡고1_dump_intrinsics.py
 
 [Result]
 - intrinsics/device_map.json (serial → cam_idx 고정 매핑)
@@ -124,6 +124,7 @@ def main(
     for idx, s in idx_serial_pairs:
         print(f"  cam{idx}: serial={s}")
 
+    failed_cams = []  # (cam_idx, serial, reason) for cameras that couldn't be dumped
     for cam_idx, serial in idx_serial_pairs:
         # query depth scale directly from device handle
         dev = None
@@ -210,6 +211,11 @@ def main(
             print("       depth K=\n", Kd)
             print("       depth D=", Dd.reshape(-1))
             print("       depth_scale(m/unit)=", ds)
+        except Exception as e:
+            # One camera failing (e.g. profile not resolvable on this USB port)
+            # must not abort the whole dump — skip it and keep the others intact.
+            print(f"[ERROR] cam{cam_idx} serial={serial} dump failed: {e} (skip)")
+            failed_cams.append((cam_idx, serial, str(e)))
         finally:
             try:
                 pipeline.stop()
@@ -218,7 +224,33 @@ def main(
 
     _save_json(scales_path, depth_scales)
     print(f"[SAVE] {scales_path}")
+
+    if failed_cams:
+        print(f"\n[WARN] {len(failed_cams)} camera(s) failed to dump:")
+        for cam_idx, serial, reason in failed_cams:
+            print(f"  cam{cam_idx} serial={serial}: {reason}")
+        print("[WARN] Their cam{idx}.npz was NOT written/updated. "
+              "Fix the profile (resolution/fps/USB) and re-run for those cameras.")
     print("[INFO] Done.")
 
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    ap = argparse.ArgumentParser(description="Dump RealSense intrinsics per camera.")
+    ap.add_argument("--out_dir", default="intrinsics")
+    ap.add_argument("--color_w", type=int, default=640)
+    ap.add_argument("--color_h", type=int, default=480)
+    ap.add_argument("--color_fps", type=int, default=15)
+    ap.add_argument("--depth_w", type=int, default=640)
+    ap.add_argument("--depth_h", type=int, default=480)
+    ap.add_argument("--depth_fps", type=int, default=15)
+    ap.add_argument("--fresh_map", action="store_true",
+                    help="serial→cam_idx 매핑을 새로 생성 (기존 device_map.json 무시).")
+    args = ap.parse_args()
+
+    main(
+        out_dir=args.out_dir,
+        color_w=args.color_w, color_h=args.color_h, color_fps=args.color_fps,
+        depth_w=args.depth_w, depth_h=args.depth_h, depth_fps=args.depth_fps,
+        use_existing_map=not args.fresh_map,
+    )

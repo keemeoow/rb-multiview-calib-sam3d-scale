@@ -5,21 +5,23 @@
     joint / tcp_base_ee_4x4 / tcp_base_cube_4x4 를 meta.json 에 임베드.
     저장 직후 notify_saved 도 전송 → 서버 터미널에 [CAPTURED] banner 출력.
 """
-# (1) 멀티캠 정적 캘리브용 (Step3, Step4 까지 진행 시):
-#     python Calib_Step2_capture_multi_cam.py \
-#       --root_folder ./data/static_cams_session_01 \
-#       --intrinsics_dir ./intrinsics \
-#       --min_markers 2 --show
-#
-# (2) Hand-to-eye 캡처용 (cube on EE, 로봇 자세별 SPACE):
-#     python Calib_Step2_capture_multi_cam.py \
-#       --root_folder ./data/handeye_session_02 \
-#       --intrinsics_dir ./intrinsics \
-#       --robot_ip 192.168.0.23 --robot_port 12348 \
-#       --min_markers 2 --show
-#
-#  (2)-1 동시에 Terminal 3에서 Calib_Step2ee_replay_joint_sequence.py 가 로봇을 자동으로
-# 각 자세로 이동시키면, 사용자는 OpenCV 창에서 SPACE 만 누르면 됨.
+"""
+ (1) 멀티캠 정적 캘리브용 (Step3, Step4 까지 진행 시):
+     python Calib_Step2_capture_multi_cam.py \
+       --root_folder ./data/static_cams_session_01 \
+       --intrinsics_dir ./intrinsics \
+       --min_markers 2 --show
+
+ (2) Hand-to-eye 캡처용 (cube on EE, 로봇 자세별 SPACE):
+     python Calib_Step2_capture_multi_cam.py \
+       --root_folder ./data/handeye_session_02 \
+       --intrinsics_dir ./intrinsics \
+       --robot_ip 192.168.0.23 --robot_port 12348 \
+       --min_markers 2 --show
+
+         (2)-1 동시에 Terminal 3에서 Calib_Step2ee_replay_joint_sequence.py 가 로봇을 자동으로
+ 각 자세로 이동시키면, 사용자는 OpenCV 창에서 SPACE 만 누르면 됨.
+"""
 
 import os
 import json
@@ -177,6 +179,9 @@ def main():
     parser.add_argument("--log_cam_errors", action="store_true")
     parser.add_argument("--log_cam_stats_sec", type=float, default=0.0)
     parser.add_argument("--show", action="store_true")
+    parser.add_argument("--preview_scale", type=float, default=0.5,
+                        help="미리보기 창 축소 배율 (0<scale<=1). 2x2 그리드 합성 후 적용. "
+                             "예: 720p 4패널(2560x1440)에 0.5 → 1280x720. 창은 드래그로도 조절 가능.")
 
     parser.add_argument("--tcp_poses_file", default=None,
                         help='저장 직전에 읽을 JSON. {"<event_id>": [[..4x4..]]} 형식 '
@@ -296,6 +301,9 @@ def main():
     print("  SPACE : save once (all cams must satisfy min_markers & stable_frames)")
     print("  ESC/q : quit\n")
 
+    if args.show:
+        cv2.namedWindow("multi_cam", cv2.WINDOW_NORMAL)  # 드래그로 창 크기 조절 가능
+
     try:
         while True:
             frames: Dict[int, dict] = {}
@@ -361,6 +369,10 @@ def main():
                     top    = np.hstack(panels[0:2])
                     bottom = np.hstack(panels[2:4])
                     combined = np.vstack([top, bottom])
+                    s = args.preview_scale
+                    if 0.0 < s < 1.0:
+                        combined = cv2.resize(combined, None, fx=s, fy=s,
+                                              interpolation=cv2.INTER_AREA)
                     cv2.imshow("multi_cam", combined)
 
             if args.log_cam_stats_sec > 0.0:
