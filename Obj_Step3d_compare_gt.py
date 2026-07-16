@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Obj_Step3d_compare_gt.py
+Rebuttal_Obj_Step3d_compare_gt.py
 
 실측(ground truth) vs 추정 크기 비교.
 
-파이프라인의 유일한 크기 추정기인 CAD 다중뷰 실루엣 정합(Obj_Step3c)을 실측과 비교한다.
+파이프라인의 유일한 크기 추정기인 CAD 다중뷰 실루엣 정합(Rebuttal_Obj_Step3c)을 실측과 비교한다.
 자 실측 기준 평균 |오차| 0.90mm. (제거된 옛 방식들은 각각 3.04mm / 6.07mm 였다.)
 
 [출력]
@@ -14,7 +14,7 @@ Obj_Step3d_compare_gt.py
   gt_overlay_<obj>.jpg     실측 크기 CAD 실루엣 vs 추정 크기 CAD 실루엣 (같은 포즈)
 
 [실행]
-  python Obj_Step3d_compare_gt.py \
+  python Rebuttal_Obj_Step3d_compare_gt.py \
     --fit_dir     data/outputs_cad_fit \
     --capture_dir data/capture_obj \
     --mask_dir    data/masks \
