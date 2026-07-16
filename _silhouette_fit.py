@@ -250,6 +250,87 @@ def fit_cad_to_views(
     }
 
 
+def fit_mesh_aniso(
+    mesh: trimesh.Trimesh,
+    cloud: np.ndarray,
+    views: Sequence[View],
+    w_depth: float = 0.0,
+    max_fev: int = 6000,
+    aniso_reg: float = 0.0,
+    warm: Optional[dict] = None,
+    verbose: bool = False,
+) -> dict:
+    """비등방(축별) 스케일 + 6-DoF 포즈를 실루엣으로 추정한다.
+
+    fit_cad_to_views 는 단일 스칼라 스케일만 쓰므로, 형상 비율이 틀린 메시(예: SAM3D
+    가 만든 peg — 너무 짧고 뚱뚱)는 균일 확대로 세 뷰 실루엣을 동시에 못 맞춘다.
+    여기서는 메시 OBB 세 축에 독립 스케일 (sx,sy,sz) 을 허용해 비율까지 교정한다.
+    등방 fit 결과에서 warm-start 하므로 등방보다 나빠지지 않는다.
+
+    aniso_reg > 0 이면 log-scale 분산에 페널티를 줘 과도한 비등방(과적합)을 억제한다.
+    반환 키는 fit_cad_to_views 와 호환(scale=기하평균) + scale_vec, V_scaled_meshframe.
+    """
+    V = np.asarray(mesh.vertices, dtype=np.float64)
+    F = np.asarray(mesh.faces)
+    if len(cloud) < 10:
+        raise RuntimeError(f"cloud too small for initialisation: {len(cloud)} points")
+
+    c_m, R_m, e_m = obb_frame(V)          # OBB center, axes(cols, desc), extent(desc)
+    Vo = (V - c_m) @ R_m                  # 정점을 OBB 중심·축 프레임으로 (mesh units)
+    pqo = SurfaceQuery(trimesh.Trimesh(vertices=Vo, faces=F, process=False))  # depth 용
+
+    # warm-start: 등방 fit (제공되면 재계산 생략)
+    iso = warm if warm is not None else fit_cad_to_views(mesh, cloud, views, w_depth=0.0, max_fev=max_fev)
+    s0, R0, t0 = iso["scale"], iso["R_cad_to_world"], iso["t_cad_to_world"]
+    # 등방 fit 은 원점 기준 스케일; 여기선 OBB 중심 기준이라 t 를 보정
+    t0 = t0 + s0 * (R0 @ c_m)
+
+    def cand_vertices(svec):
+        return (Vo * svec) @ R_m.T        # mesh 프레임(중심0), 축별 스케일
+
+    def loss(svec, R, t):
+        Vc = cand_vertices(svec)
+        L = 1.0 - float(np.mean(per_view_iou(Vc, F, 1.0, R, t, views)))
+        if w_depth > 0:
+            b = ((cloud - t) @ R) @ R_m   # world -> OBB 축 프레임(스케일된)
+            b_un = b / svec               # 비등방 스케일 되돌림 -> 단위 프레임(Vo)
+            _, d = pqo.closest(b_un)
+            d_world = d * float(np.cbrt(np.prod(svec)))   # 대략 world meter 로 환산
+            k = max(int(len(cloud) * 0.9), 10)            # 최악 10% 대응 trim (robust)
+            L += w_depth * float(np.sqrt(np.mean(np.sort(d_world)[:k] ** 2)))
+        if aniso_reg > 0:
+            L += aniso_reg * float(np.var(np.log(svec)))
+        return L
+
+    def pack(svec, R, t):
+        return np.concatenate([np.log(svec), Rotation.from_matrix(R).as_rotvec(), t])
+
+    def unpack(x):
+        return np.exp(x[0:3]), Rotation.from_rotvec(x[3:6]).as_matrix(), x[6:9]
+
+    x0 = pack(np.array([s0, s0, s0]), R0, t0)
+    res = minimize(lambda x: loss(*unpack(x)), x0, method="Powell",
+                   options={"maxiter": 100000, "maxfev": int(max_fev),
+                            "xtol": 1e-5, "ftol": 1e-7, "disp": bool(verbose)})
+    svec, R, t = unpack(res.x)
+
+    Vc = cand_vertices(svec)
+    ious = per_view_iou(Vc, F, 1.0, R, t, views)
+    _, _, ext = obb_frame(Vc)             # 최종 스케일 메시의 최소부피 OBB 치수
+    return {
+        "scale": float(np.cbrt(np.prod(svec))),
+        "scale_vec": [float(v) for v in svec],
+        "R_cad_to_world": R,
+        "t_cad_to_world": t,
+        "V_scaled_meshframe": Vc,
+        "extents_m": ext,
+        "per_view_iou": ious,
+        "mean_iou": float(np.mean(ious)),
+        "cloud_obb_extents_m": obb_frame(cloud)[2],
+        "n_fev": int(res.nfev),
+    }
+
+
 def scale_cad_to_extents(mesh: trimesh.Trimesh, target_ext_desc: np.ndarray) -> np.ndarray:
     """CAD 정점을 OBB 축별로 비균등 스케일해 target extents(내림차순)를 갖게 한다.
 
