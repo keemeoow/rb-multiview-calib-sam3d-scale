@@ -18,13 +18,13 @@ Obj_Step3d_compare_gt.py
     --fit_dir     data/outputs_cad_fit \
     --capture_dir data/capture_obj \
     --mask_dir    data/masks \
-    --cad obj1=data/Peg.glb --cad obj2=data/Hole.glb \
-    --gt  obj1=45,30,30     --gt  obj2=50,50,50 \
+    --cad peg=data/meshes/peg.glb --cad hole=data/meshes/hole.glb \
+    --gt  peg=45,30,30      --gt  hole=50,50,50 \
     --gt_tol_mm 0.5 \
     --out_dir data/outputs_cad_fit
 
   실측은 --gt (mm, 내림차순 정렬해 rank 대응) 또는 --gt_json 으로 준다.
-  --gt_json 은 {"obj1": {"extents_mm": [...], "tol_mm": 0.5}} 형식과
+  --gt_json 은 {"peg": {"extents_mm": [...], "tol_mm": 0.5}} 형식과
   Gt_Step2 리포트({"label":..., "gt_extents_mm_sorted_desc":[...]}) 를 모두 읽는다.
 """
 from __future__ import annotations
@@ -41,7 +41,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import trimesh
 
-import Obj_Step3c_fit_cad_silhouette as s3c
+import Obj_Step3c_cad_scale as s3c
 from _silhouette_fit import obb_frame, render_silhouette, scale_cad_to_extents
 
 def _use_cjk_font() -> bool:
@@ -109,7 +109,7 @@ def parse_gt(args) -> dict:
                     gt[k] = {"extents_mm": list(v), "source": "manual"}
     for spec in (args.gt or []):
         if "=" not in spec:
-            raise SystemExit(f"--gt 형식은 obj1=45,30,30 입니다 (받은 값: {spec!r})")
+            raise SystemExit(f"--gt 형식은 peg=45,30,30 입니다 (받은 값: {spec!r})")
         k, v = spec.split("=", 1)
         vals = [float(x) for x in v.split(",")]
         if len(vals) != 3:
@@ -285,8 +285,8 @@ def main():
     ap.add_argument("--fit_dir", type=Path, required=True, help="Obj_Step3c 출력 폴더")
     ap.add_argument("--capture_dir", type=Path, required=True)
     ap.add_argument("--mask_dir", type=Path, required=True)
-    ap.add_argument("--cad", action="append", required=True, metavar="obj1=model.glb")
-    ap.add_argument("--gt", action="append", metavar="obj1=45,30,30", help="실측 치수(mm)")
+    ap.add_argument("--cad", action="append", required=True, metavar="peg=model.glb")
+    ap.add_argument("--gt", action="append", metavar="peg=45,30,30", help="실측 치수(mm)")
     ap.add_argument("--gt_json", type=Path, default=None)
     ap.add_argument("--gt_tol_mm", type=float, default=0.5, help="실측 도구 허용오차 (자=0.5mm)")
     ap.add_argument("--out_dir", type=Path, required=True)

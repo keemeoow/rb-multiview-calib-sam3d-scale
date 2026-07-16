@@ -1,0 +1,82 @@
+schema_version: 1
+generated_at: '2026-07-14T15:18:32.223760+00:00'
+generated_by: scripts/export_isaac_handoff.py
+git_commit: a1ac673d771bdc47bb91e3c180e5d6b404539fcd
+source_config: configs/evaluation.yaml
+conventions:
+  length_unit: m
+  depth_unit: mm
+  depth_scale: 0.001
+  quaternion_order: wxyz
+  matrix_layout: row_major
+  camera_model: opencv
+  world_frame: cam0
+quality_gates:
+  min_reprojection_iou: 0.8
+  min_mask_pixels: 50
+  max_size_error_mm: 5.0
+  scale_tolerance: 0.2
+cameras:
+  file: calibration/cameras.yaml
+  ids:
+  - cam0
+  - cam1
+  - cam2
+objects:
+  hole:
+    dir: objects/hole
+    yaml: objects/hole/object.yaml
+  peg:
+    dir: objects/peg
+    yaml: objects/peg/object.yaml
+pending_objects: null
+trials:
+  trial_0001:
+    dir: trials/trial_0001
+    yaml: trials/trial_0001/trial.yaml
+    cameras:
+    - cam0
+    - cam1
+    - cam2
+    objects:
+    - hole
+    - peg
+measurements:
+  sizes: measurements/measured_sizes.yaml
+  size_error_csv: measurements/size_error.csv
+isaac:
+  scale_sweep:
+    uniform_percent:
+    - -10
+    - -5
+    - -3
+    - 0
+    - 3
+    - 5
+    - 10
+    anisotropic: false
+    hold_mass_constant: true
+    seed: 0
+  grasp_ablation:
+    lift_height_m: 0.1
+    hold_duration_s: 2.0
+    episode_timeout_s: 20.0
+    seed: 0
+    robot_usd: null
+    gripper_usd: null
+    policy_checkpoint: null
+    friction: null
+  conditions:
+    oracle:
+      size_source: measured
+      pose_source: isaac_predefined
+    scale_only:
+      size_source: estimated
+      pose_source: isaac_predefined
+    pose_only:
+      size_source: measured
+      pose_source: pipeline
+    full_pipeline:
+      size_source: estimated
+      pose_source: pipeline
+export_issues: []

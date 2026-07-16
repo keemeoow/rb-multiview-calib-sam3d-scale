@@ -1,0 +1,32 @@
+id: trial_0001
+world_frame: cam0
+source:
+  capture_dir: data/capture_obj
+  mask_dir: data/masks
+  fit_dir: data/outputs_cad_fit
+  fp_dir: null
+cameras:
+  cam0:
+    rgb: trials/trial_0001/cam0/rgb.png
+    depth: trials/trial_0001/cam0/depth.png
+  cam1:
+    rgb: trials/trial_0001/cam1/rgb.png
+    depth: trials/trial_0001/cam1/depth.png
+  cam2:
+    rgb: trials/trial_0001/cam2/rgb.png
+    depth: trials/trial_0001/cam2/depth.png
+objects:
+  hole:
+    pose: trials/trial_0001/poses/hole.json
+    masks:
+      cam0: trials/trial_0001/cam0/mask_hole.png
+      cam1: trials/trial_0001/cam1/mask_hole.png
+      cam2: trials/trial_0001/cam2/mask_hole.png
+    pose_source: cad_silhouette_fit
+  peg:
+    pose: trials/trial_0001/poses/peg.json
+    masks:
+      cam0: trials/trial_0001/cam0/mask_peg.png
+      cam1: trials/trial_0001/cam1/mask_peg.png
+      cam2: trials/trial_0001/cam2/mask_peg.png
+    pose_source: cad_silhouette_fit

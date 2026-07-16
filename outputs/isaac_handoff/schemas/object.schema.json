@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "objects/<object>/object.yaml",
+  "type": "object",
+  "required": [
+    "id",
+    "assets",
+    "size"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "name": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "assets": {
+      "type": "object",
+      "required": [
+        "mesh_scaled"
+      ],
+      "properties": {
+        "mesh_scaled": {
+          "type": "string"
+        },
+        "mesh_raw": {
+          "type": "string"
+        }
+      }
+    },
+    "size": {
+      "type": "object",
+      "required": [
+        "estimated_extents_m"
+      ],
+      "properties": {
+        "estimated_extents_m": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        },
+        "measured_extents_m": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        },
+        "scale_estimated_to_measured": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "mass_kg": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "exclusiveMinimum": 0
+    },
+    "com_m": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    }
+  }
+}

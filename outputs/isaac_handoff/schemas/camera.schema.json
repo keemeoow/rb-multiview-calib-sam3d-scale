@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "calibration/cameras.yaml",
+  "type": "object",
+  "required": [
+    "world_frame",
+    "camera_model",
+    "cameras"
+  ],
+  "properties": {
+    "world_frame": {
+      "type": "string"
+    },
+    "camera_model": {
+      "const": "opencv"
+    },
+    "opencv_to_usd_camera": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "array",
+        "minItems": 4,
+        "maxItems": 4,
+        "items": {
+          "type": "number"
+        }
+      },
+      "description": "row-major 4x4. p_dst = T @ p_src. 마지막 행은 [0,0,0,1]."
+    },
+    "cameras": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "width",
+          "height",
+          "K",
+          "T_world_cam"
+        ],
+        "properties": {
+          "width": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "height": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "K": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 3,
+            "items": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": "number"
+              }
+            }
+          },
+          "T_world_cam": {
+            "type": "array",
+            "minItems": 4,
+            "maxItems": 4,
+            "items": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {
+                "type": "number"
+              }
+            },
+            "description": "row-major 4x4. p_dst = T @ p_src. 마지막 행은 [0,0,0,1]."
+          },
+          "T_world_cam_isaac": {
+            "type": "array",
+            "minItems": 4,
+            "maxItems": 4,
+            "items": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {
+                "type": "number"
+              }
+            },
+            "description": "row-major 4x4. p_dst = T @ p_src. 마지막 행은 [0,0,0,1]."
+          }
+        }
+      }
+    }
+  }
+}

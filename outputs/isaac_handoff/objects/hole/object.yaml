@@ -1,0 +1,40 @@
+id: hole
+name: hole
+assets:
+  mesh_scaled: objects/hole/hole_cad_scaled.glb
+  mesh_raw: objects/hole/hole_cad_raw.glb
+size:
+  estimated_extents_m:
+  - 0.05086377519383745
+  - 0.050758564592160466
+  - 0.04900534863417387
+  estimated_extents_mm_sorted_desc:
+  - 50.863775193837455
+  - 50.75856459216047
+  - 49.00534863417387
+  measured_extents_m:
+  - 0.05
+  - 0.05
+  - 0.05
+  measured_extents_mm_sorted_desc:
+  - 50.0
+  - 50.0
+  - 50.0
+  measured_source: caliper_manual
+  measured_tolerance_mm: 0.5
+  estimation_method: cad_multiview_silhouette
+  mask_pm1px_spread_mm:
+  - 3.626215703010473
+  - 3.61871495548494
+  - 3.493723461766841
+  mean_silhouette_iou: 0.9769703059991409
+  scale_estimated_to_measured:
+  - 0.9830178709593286
+  - 0.9850554364912514
+  - 1.0202967919532873
+  note: mesh_scaled 는 estimated 치수다. Oracle / Pose-only 조건에서는 scale_estimated_to_measured
+    를 mesh 에 곱해 measured 치수로 만든다.
+mass_kg: null
+com_m: null
+material: null
+source_fit: hole_cad_fit.json (trial trial_0001)

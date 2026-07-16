@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "trials/<trial>/poses/<object>.json",
+  "type": "object",
+  "required": [
+    "trial",
+    "object",
+    "T_world_object",
+    "quat_wxyz",
+    "T_cam_object",
+    "pose_source",
+    "matrix_layout",
+    "quaternion_order"
+  ],
+  "properties": {
+    "trial": {
+      "type": "string"
+    },
+    "object": {
+      "type": "string"
+    },
+    "T_world_object": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "array",
+        "minItems": 4,
+        "maxItems": 4,
+        "items": {
+          "type": "number"
+        }
+      },
+      "description": "row-major 4x4. p_dst = T @ p_src. 마지막 행은 [0,0,0,1]."
+    },
+    "translation_m": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "number"
+      }
+    },
+    "quat_wxyz": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "number"
+      },
+      "description": "scalar-first (w, x, y, z)"
+    },
+    "T_cam_object": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "minItems": 4,
+        "maxItems": 4,
+        "items": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "type": "number"
+          }
+        },
+        "description": "row-major 4x4. p_dst = T @ p_src. 마지막 행은 [0,0,0,1]."
+      }
+    },
+    "reprojection_iou": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "pose_source": {
+      "enum": [
+        "foundationpose",
+        "cad_silhouette_fit"
+      ]
+    },
+    "matrix_layout": {
+      "const": "row_major"
+    },
+    "quaternion_order": {
+      "const": "wxyz"
+    }
+  }
+}

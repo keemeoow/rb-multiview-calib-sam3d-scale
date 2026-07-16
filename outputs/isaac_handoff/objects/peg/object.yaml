@@ -1,0 +1,40 @@
+id: peg
+name: peg
+assets:
+  mesh_scaled: objects/peg/peg_cad_scaled.glb
+  mesh_raw: objects/peg/peg_cad_raw.glb
+size:
+  estimated_extents_m:
+  - 0.04430822656022124
+  - 0.029005742907309073
+  - 0.028111512450233776
+  estimated_extents_mm_sorted_desc:
+  - 44.308226560221236
+  - 29.005742907309074
+  - 28.111512450233775
+  measured_extents_m:
+  - 0.045
+  - 0.03
+  - 0.03
+  measured_extents_mm_sorted_desc:
+  - 45.0
+  - 30.0
+  - 30.0
+  measured_source: caliper_manual
+  measured_tolerance_mm: 0.5
+  estimation_method: cad_multiview_silhouette
+  mask_pm1px_spread_mm:
+  - 4.426935445798954
+  - 2.898029584496573
+  - 2.8086849906261975
+  mean_silhouette_iou: 0.9662731700253487
+  scale_estimated_to_measured:
+  - 1.0156127539620332
+  - 1.034277939229765
+  - 1.0671784399046278
+  note: mesh_scaled 는 estimated 치수다. Oracle / Pose-only 조건에서는 scale_estimated_to_measured
+    를 mesh 에 곱해 measured 치수로 만든다.
+mass_kg: null
+com_m: null
+material: null
+source_fit: peg_cad_fit.json (trial trial_0001)

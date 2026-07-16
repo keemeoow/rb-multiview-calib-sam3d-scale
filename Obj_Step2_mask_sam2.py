@@ -15,11 +15,18 @@ PYTHONWARNINGS=ignore /home/sprout/anaconda3/envs/sam2env/bin/python3 \
   --masks_dir     "$MASKS" \
   --sam_checkpoint ~/sam2_checkpoints/sam2_hiera_large.pt \
   --sam_config    configs/sam2/sam2_hiera_l.yaml \
-  --num_objects 2 \
+  --objects peg,hole,mustard,drill,banana \
   --device cpu
 
+[객체 이름]
+  --objects 로 **의미 있는 이름**을 준다 (권장). 마스크가 masks/<name>/ 에 저장되고,
+  그 이름이 그대로 다운스트림의 객체 id 가 된다:
+      Obj_Step3c  --cad peg=data/meshes/peg.glb
+      configs/evaluation.yaml  objects: { peg: ... }
+  --objects 를 생략하고 --num_objects N 을 주면 예전처럼 obj1..objN 이름을 쓴다 (하위 호환).
+
 [사용법]
-UI: 한 창씩 (cam, obj) 슬롯 표시. cam0 → obj1, obj2, ... → cam1 → obj1, ... 순서.
+UI: 한 창씩 (cam, obj) 슬롯 표시. cam0 → 객체1, 객체2, ... → cam1 → ... 순서.
   좌클릭   : 양성 포인트
   우클릭   : 음성 포인트 (boundary 정제)
   SPACE    : 현재 마스크 저장 → 다음 (cam, obj)
@@ -29,7 +36,7 @@ UI: 한 창씩 (cam, obj) 슬롯 표시. cam0 → obj1, obj2, ... → cam1 → o
   q / ESC  : 종료 (지금까지 저장한 건 유지)
 
 출력 (--masks_dir):
-  masks/obj{N}/cam{ci}_mask.png    (서브디렉터리 구조; 다운스트림 호환)
+  masks/<obj>/cam{ci}_mask.png     <obj> = --objects 이름 (또는 obj{N})
   mask_summary.json
 """
 
@@ -90,13 +97,13 @@ def _label_one_object(
     predictor: SAM2ImagePredictor,
     rgb_bgr: np.ndarray,
     cam_id: int,
-    obj_idx: int,
+    obj_name: str,
     masks_dir: Path,
     window_size: Tuple[int, int] = (1024, 768),
 ) -> str:
     """Returns one of: 'saved', 'skip', 'quit'."""
     state = {"clicks": [], "mask": None}
-    window = f"cam{cam_id}  obj{obj_idx}"
+    window = f"cam{cam_id}  {obj_name}"
     img_h, img_w = rgb_bgr.shape[:2]
 
     def _refresh():
@@ -126,7 +133,7 @@ def _label_one_object(
             color = (0, 220, 0) if lbl == 1 else (0, 0, 220)
             cv2.circle(disp, (x, y), 6, color, -1)
             cv2.circle(disp, (x, y), 7, (255, 255, 255), 1)
-        msg = (f"cam{cam_id} obj{obj_idx}  "
+        msg = (f"cam{cam_id} {obj_name}  "
                f"L=+  R=-  SPACE=save  n=skip  b=undo  r=reset  q=quit  "
                f"({len(state['clicks'])} pts)")
         cv2.putText(disp, msg, (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 3)
@@ -153,7 +160,7 @@ def _label_one_object(
             cv2.destroyWindow(window)
             return "quit"
         if key == ord("n"):
-            print(f"  [cam{cam_id} obj{obj_idx}] skipped (not visible)")
+            print(f"  [cam{cam_id} {obj_name}] skipped (not visible)")
             cv2.destroyWindow(window)
             return "skip"
         if key == ord("b"):
@@ -166,13 +173,13 @@ def _label_one_object(
             _redraw()
         elif key == 32:  # SPACE
             if state["mask"] is None or not state["mask"].any():
-                print(f"  [cam{cam_id} obj{obj_idx}] no mask yet — left-click on the object first.")
+                print(f"  [cam{cam_id} {obj_name}] no mask yet — left-click on the object first.")
                 continue
-            obj_dir = masks_dir / f"obj{obj_idx}"
+            obj_dir = masks_dir / obj_name
             obj_dir.mkdir(parents=True, exist_ok=True)
             out = obj_dir / f"cam{cam_id}_mask.png"
             cv2.imwrite(str(out), (state["mask"].astype(np.uint8) * 255))
-            print(f"  [cam{cam_id} obj{obj_idx}] saved {out} ({int(state['mask'].sum())} px)")
+            print(f"  [cam{cam_id} {obj_name}] saved {out} ({int(state['mask'].sum())} px)")
             cv2.destroyWindow(window)
             return "saved"
 
@@ -196,10 +203,27 @@ def main() -> None:
         default="configs/sam2/sam2_hiera_l.yaml",
         help="hydra config (SAM 2 repo 내부 경로)",
     )
-    ap.add_argument("--num_objects", type=int, default=3,
-                    help="카메라당 라벨링할 객체 수")
+    ap.add_argument("--objects", default=None,
+                    help="객체 이름 (쉼표 구분). 예: peg,hole,mustard,drill,banana. "
+                         "마스크가 masks/<name>/ 에 저장되고 이 이름이 다운스트림 객체 id 가 된다.")
+    ap.add_argument("--num_objects", type=int, default=None,
+                    help="--objects 대신 개수만 줄 때 (하위 호환). 이름은 obj1..objN.")
     ap.add_argument("--device", default="cpu", choices=["cpu", "cuda"])
     args = ap.parse_args()
+
+    if args.objects:
+        obj_names = [n.strip() for n in args.objects.split(",") if n.strip()]
+        dupes = {n for n in obj_names if obj_names.count(n) > 1}
+        if dupes:
+            raise SystemExit(f"--objects 에 중복 이름: {sorted(dupes)}")
+        bad = [n for n in obj_names if "/" in n or n.startswith(".")]
+        if bad:
+            raise SystemExit(f"--objects 이름에 '/' 나 선행 '.' 은 쓸 수 없다: {bad}")
+    else:
+        n = args.num_objects if args.num_objects is not None else 3
+        obj_names = [f"obj{i}" for i in range(1, n + 1)]
+        print(f"[WARN] --objects 미지정 → {obj_names} 로 진행한다. "
+              f"의미 있는 이름을 쓰려면 --objects peg,hole,... 을 줘라.")
 
     capture_dir = Path(args.capture_dir).resolve()
     masks_dir = Path(args.masks_dir).resolve()
@@ -212,8 +236,9 @@ def main() -> None:
     model = build_sam2(args.sam_config, args.sam_checkpoint, device=args.device)
     predictor = SAM2ImagePredictor(model)
 
-    print(f"\n[INFO] {len(cam_ids)} camera(s) × {args.num_objects} object(s) = "
-          f"{len(cam_ids) * args.num_objects} mask slot(s)")
+    print(f"\n[INFO] {len(cam_ids)} camera(s) × {len(obj_names)} object(s) = "
+          f"{len(cam_ids) * len(obj_names)} mask slot(s)")
+    print(f"[INFO] objects: {obj_names}")
     print("Controls: L=+ R=- SPACE=save n=skip b=undo r=reset q=quit\n")
 
     summary = []
@@ -230,9 +255,9 @@ def main() -> None:
         print(f"[cam{ci}] computing image embedding ({rgb_bgr.shape[1]}x{rgb_bgr.shape[0]})...")
         predictor.set_image(rgb_rgb)
 
-        for obj_idx in range(1, args.num_objects + 1):
-            result = _label_one_object(predictor, rgb_bgr, ci, obj_idx, masks_dir)
-            summary.append({"cam_id": ci, "obj_idx": obj_idx, "result": result})
+        for obj_name in obj_names:
+            result = _label_one_object(predictor, rgb_bgr, ci, obj_name, masks_dir)
+            summary.append({"cam_id": ci, "object": obj_name, "result": result})
             if result == "quit":
                 aborted = True
                 break
@@ -243,7 +268,8 @@ def main() -> None:
         json.dump({
             "capture_dir": str(capture_dir),
             "masks_dir": str(masks_dir),
-            "num_objects": args.num_objects,
+            "objects": obj_names,
+            "num_objects": len(obj_names),
             "events": summary,
         }, f, indent=2)
 
@@ -253,15 +279,15 @@ def main() -> None:
           + (" (quit early)" if aborted else ""))
 
     # per-object coverage check
-    obj_cams: Dict[int, List[int]] = {}
+    obj_cams: Dict[str, List[int]] = {}
     for s in saved:
-        obj_cams.setdefault(s["obj_idx"], []).append(s["cam_id"])
-    for oi in range(1, args.num_objects + 1):
-        cams = obj_cams.get(oi, [])
+        obj_cams.setdefault(s["object"], []).append(s["cam_id"])
+    for name in obj_names:
+        cams = obj_cams.get(name, [])
         warn = "  [WARN] <2 cams → metric scale unreliable" if len(cams) < 2 else ""
-        print(f"  obj{oi}: cams={cams}{warn}")
+        print(f"  {name}: cams={cams}{warn}")
 
-    print(f"\nNext: python Obj_Step3_sam3d_pose.py "
+    print(f"\nNext: python Obj_Step3_sam3d_scale.py "
           f"--data_dir {capture_dir} --mask_dir {masks_dir} "
           f"--out_dir ./outputs --depth_scale {load_depth_scale(capture_dir)} --run_sam3d")
 

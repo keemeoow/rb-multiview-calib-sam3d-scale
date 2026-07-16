@@ -22,7 +22,8 @@
 
 미지수
 ------
-CAD 는 형상만 준다 (이 저장소의 Peg.glb / Hole.glb 는 각각 독립적으로 정규화되어 있다).
+CAD 는 형상만 준다 (data/meshes/peg.glb, hole.glb 는 각각 독립적으로 정규화되어 있다).
+YCB 처럼 이미 실척인 mesh 를 넣어도 된다 — 그 경우 추정 scale 이 1.0 근처로 나와야 정상이다.
 따라서 스케일 1개 + 6-DoF 포즈 = 7개 파라미터를 푼다.
 depth 는 초기값(대략적인 위치/방향)에만 쓰고, 스케일은 실루엣이 정한다.
 
@@ -37,6 +38,7 @@ import numpy as np
 import open3d as o3d
 import trimesh
 from scipy.optimize import minimize
+from scipy.spatial import cKDTree
 from scipy.spatial.transform import Rotation
 
 from _obb import min_volume_obb
@@ -260,14 +262,81 @@ def scale_cad_to_extents(mesh: trimesh.Trimesh, target_ext_desc: np.ndarray) -> 
     return ((V @ R_m) * f) @ R_m.T
 
 
+def _flying_pixel_edges(z: np.ndarray, mask: np.ndarray,
+                        n_sigma: float, min_valid: float) -> np.ndarray:
+    """물체 자신의 depth 그래디언트 통계로 경계 오염(mixed/flying pixel)을 탐지.
+
+    고정 침식 대신 쓴다. 실제 표면은 픽셀 간 depth 변화가 완만하지만, 실루엣 경계의
+    flying pixel 은 배경으로 튀며 국소 그래디언트가 급증한다. 그 그래디언트의 robust
+    통계(median + n_sigma·MAD)를 넘는 픽셀만 제거하므로, 거리·물체 크기·형상과 무관하게
+    "이 물체 기준으로 튀는 경계"에만 자동으로 맞춰진다. 반환: 제거 대상 True 마스크.
+    """
+    valid = mask & (z > min_valid)
+    g = np.zeros_like(z)
+    for dy, dx in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+        zs = np.roll(z, (dy, dx), (0, 1))
+        vs = np.roll(valid, (dy, dx), (0, 1))
+        d = np.abs(z - zs)
+        d[~(valid & vs)] = 0.0                 # 유효 이웃끼리만 그래디언트 정의
+        g = np.maximum(g, d)
+    gin = g[valid]
+    if gin.size < 20:
+        return np.zeros_like(mask, bool)
+    gmed = float(np.median(gin))
+    gmad = 1.4826 * float(np.median(np.abs(gin - gmed))) + 1e-6
+    return valid & (g > gmed + n_sigma * gmad)
+
+
+def _auto_voxel(pts: np.ndarray, k_nn: float = 1.5,
+                target_samples: Tuple[int, int] = (40, 300),
+                noise_floor_m: Optional[float] = None) -> float:
+    """점 밀도와 물체 스케일에서 voxel 크기를 유도한다 (고정 2mm 대체).
+
+        voxel = clip(k_nn · d_nn,  L/N_hi,  L/N_lo),   voxel ≥ noise_floor
+
+      d_nn : 최근접 이웃 간격의 median. 카메라가 멀어져 점이 성겨지면(≈ Z/fx) 함께 커진다
+             → 거리·해상도 자동 적응 (물리항).
+      L    : 중심 95% 점의 AABB 대각. 이상치를 뺀 물체 스케일 (데이터항).
+             작은 물체는 촘촘, 큰 물체는 성기게 해 물체당 샘플 수를 N_lo~N_hi 로 유지.
+    """
+    P = np.asarray(pts, np.float64)
+    if len(P) < 10:
+        return 0.002
+    if len(P) > 5000:                          # 결정론적 스트라이드 서브샘플(속도)
+        P = P[:: len(P) // 5000]
+    tree = cKDTree(P)
+    dists, _ = tree.query(P, k=2)
+    d_nn = float(np.median(dists[:, 1]))
+    c = np.median(P, axis=0)
+    r = np.linalg.norm(P - c, axis=1)
+    core = P[r <= np.quantile(r, 0.95)]
+    L = float(np.linalg.norm(core.max(0) - core.min(0))) if len(core) else 0.0
+    v = k_nn * d_nn
+    n_lo, n_hi = target_samples
+    if L > 0:
+        v = float(np.clip(v, L / n_hi, L / n_lo))
+    if noise_floor_m:
+        v = max(v, float(noise_floor_m))
+    return max(v, 1e-4)
+
+
 def cloud_from_masked_depth(K, T_cam_to_world, depth_u16, mask, depth_scale=0.001,
-                            erode_px=3, z_range=(0.05, 2.0)) -> np.ndarray:
-    """마스크 안쪽 depth 픽셀을 world 로 backproject. 실루엣 경계 픽셀은 침식으로 제외."""
+                            erode_px="auto", z_range=(0.05, 2.0),
+                            flying_nsigma=4.0) -> np.ndarray:
+    """마스크 안쪽 depth 픽셀을 world 로 backproject. 실루엣 경계 픽셀은 제외.
+
+    erode_px="auto": 물체의 depth 그래디언트 통계로 오염 픽셀만 제거(권장) + 1px 안전 여유.
+                     거리·물체 크기와 무관하게 자동 적응 (_flying_pixel_edges 참고).
+    erode_px=<int>:  기존 고정 침식(rim = erode_px 픽셀). 하위호환용.
+    """
     m = np.asarray(mask, bool)
-    if erode_px > 0:
-        k = np.ones((erode_px * 2 + 1,) * 2, np.uint8)
-        m = cv2.erode(m.astype(np.uint8), k, 1) > 0
     z = np.asarray(depth_u16, np.float64) * float(depth_scale)
+    if erode_px == "auto":
+        m = m & ~_flying_pixel_edges(z, m, flying_nsigma, z_range[0])
+        m = cv2.erode(m.astype(np.uint8), np.ones((3, 3), np.uint8), 1) > 0
+    elif isinstance(erode_px, (int, np.integer)) and erode_px > 0:
+        k = np.ones((int(erode_px) * 2 + 1,) * 2, np.uint8)
+        m = cv2.erode(m.astype(np.uint8), k, 1) > 0
     H, W = z.shape
     v, u = np.mgrid[0:H, 0:W]
     sel = m & (z > z_range[0]) & (z < z_range[1])
@@ -280,15 +349,27 @@ def cloud_from_masked_depth(K, T_cam_to_world, depth_u16, mask, depth_scale=0.00
     return (T[:3, :3] @ P.T).T + T[:3, 3]
 
 
-def clean_cloud(pts: np.ndarray, voxel_m=0.002, nb_neighbors=20, std_ratio=2.0,
-                dbscan_eps_m=0.01, dbscan_min_points=10) -> np.ndarray:
+def clean_cloud(pts: np.ndarray, voxel_m="auto", nb_neighbors=20, std_ratio=2.0,
+                dbscan_eps_m="auto", dbscan_min_points=10,
+                noise_floor_m=None, verbose=True) -> np.ndarray:
     """다운샘플 -> 통계적 이상치 제거 -> DBSCAN 최대 군집만 유지.
 
     DBSCAN 이 없으면 마스크 가장자리에서 새어 들어온 배경 점 뭉치가 남아 초기 OBB 가
     수백 mm 로 부풀고, 그러면 ICP 초기 포즈가 엉뚱한 골짜기에서 시작한다.
+
+    voxel_m="auto"     : 점 밀도·물체 스케일에서 유도(_auto_voxel). 고정값 대신 물체마다 최적화.
+    dbscan_eps_m="auto": 5·voxel 로 연동. voxel 하나가 정해지면 군집 반경도 따라간다.
     """
     if len(pts) < 10:
         return pts
+    src = "auto" if voxel_m == "auto" else "fixed"
+    if voxel_m == "auto":
+        voxel_m = _auto_voxel(pts, noise_floor_m=noise_floor_m)
+    if dbscan_eps_m == "auto":
+        dbscan_eps_m = 5.0 * voxel_m
+    if verbose:
+        print(f"  [{src}] voxel {voxel_m*1000:.2f} mm  dbscan_eps {dbscan_eps_m*1000:.2f} mm "
+              f"(from {len(pts)} pts)")
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(pts)
     if voxel_m > 0:
@@ -304,3 +385,118 @@ def clean_cloud(pts: np.ndarray, voxel_m=0.002, nb_neighbors=20, std_ratio=2.0,
         return p
     counts = np.bincount(labels[valid])
     return p[labels == int(np.argmax(counts))]
+
+
+# ============================================================
+# depth 신뢰도 자동 추정 (--w_depth auto)
+# ============================================================
+#
+# depth 를 손실에 넣을지(w_depth)를 물체마다 자동으로 정한다. 판단 근거는
+# **카메라 간 표면 일치도**: depth 가 믿을 만하면 한 카메라의 표면점을 다른 카메라로
+# 재투영했을 때 그 카메라가 측정한 depth 와 일치한다. 검은/광택/투명처럼 depth 가
+# 계통 편향(bias)을 가지면 카메라마다 표면 위치가 어긋나 불일치가 커진다
+# (이 저장소 관측: 흰 종이 ~1.4mm, 검은 물체 5~15mm). 편향은 점을 더 모아도 줄지
+# 않으므로(분산과 달리 평균으로 상쇄 안 됨), 이 불일치가 곧 depth 를 얼마나 믿을지의
+# 지표다. 불일치가 작을수록 depth 가중을 키운다.
+
+
+def _backproject_world(K, T_cam_to_world, depth_m, mask, z_range):
+    """마스크 안의 유효 depth 픽셀을 world 3D 점으로 역투영."""
+    z = np.asarray(depth_m, np.float64)
+    m = np.asarray(mask, bool) & np.isfinite(z) & (z > z_range[0]) & (z < z_range[1])
+    if not m.any():
+        return np.zeros((0, 3))
+    v, u = np.where(m)
+    zz = z[m]
+    K = np.asarray(K, np.float64)
+    x = (u - K[0, 2]) * zz / K[0, 0]
+    y = (v - K[1, 2]) * zz / K[1, 1]
+    Pc = np.stack([x, y, zz], axis=1)
+    T = np.asarray(T_cam_to_world, np.float64)
+    return (T[:3, :3] @ Pc.T).T + T[:3, 3]
+
+
+def cross_view_depth_disagreement(cams, z_range=(0.05, 2.0), reject_m=0.03,
+                                  min_overlap=50) -> float:
+    """카메라 간 표면 불일치(m)의 robust 중앙값. 평가 불가면 np.nan.
+
+    cams: list of dict{K, T(cam->world), depth_m(HxW, meter), mask(HxW bool)}.
+    한 카메라의 표면점을 다른 카메라로 재투영해, 그 카메라 mask 안에서 측정 depth 와
+    비교한다. reject_m 초과 차이는 가림(occlusion)으로 서로 다른 표면에 대응된 것으로
+    보고 버린다 (편향이 아니라 대응 오류이므로).
+    """
+    if len(cams) < 2:
+        return np.nan
+    world = [_backproject_world(c["K"], c["T"], c["depth_m"], c["mask"], z_range)
+             for c in cams]
+    pair_meds = []
+    for a in range(len(cams)):
+        Pw = world[a]
+        if len(Pw) < min_overlap:
+            continue
+        for b in range(len(cams)):
+            if a == b:
+                continue
+            cb = cams[b]
+            Kb = np.asarray(cb["K"], np.float64)
+            Wb = np.linalg.inv(np.asarray(cb["T"], np.float64))
+            Xb = (Wb[:3, :3] @ Pw.T).T + Wb[:3, 3]
+            front = Xb[:, 2] > z_range[0]
+            if front.sum() < min_overlap:
+                continue
+            Xf = Xb[front]
+            uv = (Kb @ Xf.T).T
+            uu = uv[:, 0] / uv[:, 2]
+            vv = uv[:, 1] / uv[:, 2]
+            depth_b = np.asarray(cb["depth_m"], np.float64)
+            mask_b = np.asarray(cb["mask"], bool)
+            H, W = depth_b.shape
+            ui = np.round(uu).astype(int)
+            vi = np.round(vv).astype(int)
+            inb = (ui >= 0) & (ui < W) & (vi >= 0) & (vi < H)
+            if inb.sum() < min_overlap:
+                continue
+            ui, vi, zf = ui[inb], vi[inb], Xf[inb, 2]
+            meas = depth_b[vi, ui]
+            good = (mask_b[vi, ui] & np.isfinite(meas)
+                    & (meas > z_range[0]) & (meas < z_range[1]))
+            if good.sum() < min_overlap:
+                continue
+            diff = np.abs(zf[good] - meas[good])
+            diff = diff[diff < reject_m]
+            if len(diff) >= min_overlap:
+                pair_meds.append(float(np.median(diff)))
+    if not pair_meds:
+        return np.nan
+    return float(np.median(pair_meds))
+
+
+def auto_w_depth(cams, w_max=20.0, d_lo_m=0.0015, d_hi_m=0.006,
+                 z_range=(0.05, 2.0), verbose=True) -> Tuple[float, dict]:
+    """카메라 간 depth 일치도에서 w_depth 를 유도한다.
+
+    반환 (w_depth, info). 불일치 δ 가 d_lo 이하면 신뢰도 1(→ w_max), d_hi 이상이면
+    0(→ 순수 실루엣). 그 사이는 선형. 평가 불가(카메라<2 또는 겹침 부족)면 0 (안전).
+
+    depth 가 계통 편향을 가질 때만 낮아지므로, 흰/무광처럼 정합에 도움되는 depth 는
+    켜지고 검은/광택처럼 편향된 depth 는 자동으로 꺼진다. 최악의 경우에도 순수
+    실루엣으로 우아하게 물러난다.
+    """
+    delta = cross_view_depth_disagreement(cams, z_range=z_range)
+    if not np.isfinite(delta):
+        info = {"disagreement_mm": None, "confidence": 0.0, "w_depth": 0.0,
+                "mode": "auto", "d_lo_mm": d_lo_m * 1000.0, "d_hi_mm": d_hi_m * 1000.0,
+                "w_max": float(w_max),
+                "reason": "cross-view depth 평가 불가 (카메라<2 또는 겹침 부족) -> 순수 실루엣"}
+        if verbose:
+            print(f"  [w_depth auto] {info['reason']}")
+        return 0.0, info
+    conf = float(np.clip((d_hi_m - delta) / (d_hi_m - d_lo_m), 0.0, 1.0))
+    w = float(w_max * conf)
+    info = {"disagreement_mm": delta * 1000.0, "confidence": conf, "w_depth": w,
+            "mode": "auto", "d_lo_mm": d_lo_m * 1000.0, "d_hi_mm": d_hi_m * 1000.0,
+            "w_max": float(w_max), "reason": None}
+    if verbose:
+        print(f"  [w_depth auto] cross-view disagreement {delta*1000:.2f} mm "
+              f"-> confidence {conf:.2f} -> w_depth {w:.1f}")
+    return w, info

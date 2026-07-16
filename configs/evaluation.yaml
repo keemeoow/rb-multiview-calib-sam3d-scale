@@ -1,0 +1,166 @@
+# evaluation.yaml — Isaac Sim handoff 의 단일 진입 설정
+#
+#   python scripts/export_isaac_handoff.py --config configs/evaluation.yaml \
+#     --output outputs/isaac_handoff
+#
+# 경로는 모두 repo root 기준 상대경로다.
+#
+# ---------------------------------------------------------------------------
+# ★ 객체를 새로 추가하는 법 (5개 추가 시 이걸 5번 반복)
+# ---------------------------------------------------------------------------
+#   1. mesh 를 data/meshes/<id>.glb 로 넣는다.        (id = 소문자 영문/숫자/_)
+#
+#   2. 촬영 + 마스크.  --objects 에 그 id 를 그대로 넣는다:
+#        python Obj_Step1_capture_object.py --out_dir data/capture_obj ...
+#        python Obj_Step2_mask_sam2.py --capture_dir data/capture_obj \
+#          --masks_dir data/masks --objects peg,hole,<id>,...
+#      → data/masks/<id>/cam{0,1,2}_mask.png
+#
+#   3. 크기/포즈 추정.  --cad 에 그 id 를 그대로 넣는다:
+#        python Obj_Step3c_cad_scale.py \
+#          --capture_dir data/capture_obj --mask_dir data/masks \
+#          --cad <id>=data/meshes/<id>.glb ... \
+#          --out_dir data/outputs_cad_fit --save_overlay --mask_uncertainty
+#      → data/outputs_cad_fit/<id>_cad_fit.json, <id>_cad_scaled.glb
+#
+#   4. 아래 objects: 에 <id> 항목을 추가하고 캘리퍼 실측값과 질량을 적는다.
+#
+#   exporter 는 data/masks/ 와 data/outputs_cad_fit/ 를 스캔해 객체를 **자동 탐색**한다.
+#   따라서 4번을 안 해도 export 는 되지만, 실측값이 없으면 GT 비교(Oracle 조건)를
+#   만들 수 없어서 report 에 경고로 남는다.
+#
+#   ⚠ 모르는 값은 반드시 null 로 둬라. 임의의 숫자를 채우면 validator 가 통과해버리고
+#     Isaac Sim 에서 잘못된 물성으로 실험이 돌아간다. null 은 TODO 로 보고된다.
+# ---------------------------------------------------------------------------
+
+version: 2
+
+conventions:
+  length_unit: m               # 모든 pose/size 는 meter. depth PNG 만 uint16 mm.
+  depth_unit: mm               # uint16 PNG raw 값 * depth_scale = meter
+  depth_scale: 0.001
+  quaternion_order: wxyz       # scalar-first (USD Gf.Quatd 와 동일)
+  matrix_layout: row_major     # JSON 의 4x4 는 [행][열], p_dst = T @ p_src
+  camera_model: opencv         # x=right, y=down, z=forward(광축)
+  world_frame: cam0            # Obj_Step1 이 dump 한 world 정의 (calib_info.json 과 대조 검증)
+
+# ---------------------------------------------------------------------------
+# 객체 (총 7개 예정: peg, hole + YCB 5개)
+#
+#   cad             mesh 경로. 생략하면 <id>_cad_fit.json 에 기록된 경로를 쓴다.
+#   measured        실물을 캘리퍼로 잰 값 (ground truth). 내림차순 정렬 (L1>=L2>=L3).
+#                   → Obj_Step3d 및 Oracle/Pose-only 조건이 쓴다.
+#   mass_kg         저울 실측값. 안 쟀으면 null.
+#   com_m           center of mass. 미측정이면 null → Isaac 에서 균질 밀도 가정.
+#   expect_scale_near
+#                   Obj_Step3c 가 추정한 scale_cad_to_world 의 기대값.
+#                   YCB 처럼 **이미 실척인 mesh** 는 1.0 이어야 한다 — 크게 벗어나면
+#                   mesh 단위(mm/cm)나 마스크가 잘못된 것이라 exporter 가 경고한다.
+#                   peg/hole 처럼 정규화된 CAD 는 임의값이므로 null.
+#   mask_key/fit_key
+#                   데이터 폴더 이름이 id 와 다를 때만 쓴다 (예전 obj1/obj2 데이터 호환).
+#                   지금은 데이터도 전부 semantic 이름이라 필요 없다.
+# ---------------------------------------------------------------------------
+objects:
+
+  peg:
+    name: peg
+    cad: data/meshes/peg.glb
+    measured:
+      extents_mm: [45.0, 30.0, 30.0]
+      source: caliper_manual
+      tolerance_mm: 0.5
+    mass_kg: null            # TODO(사용자): 저울 측정
+    com_m: null              # TODO(사용자): 미측정 시 null (균질 밀도 가정)
+    material: null           # TODO(사용자): 예) PLA
+    expect_scale_near: null  # 정규화된 CAD — scale 은 임의값 (실측 0.0443)
+
+  hole:
+    name: hole
+    cad: data/meshes/hole.glb
+    measured:
+      extents_mm: [50.0, 50.0, 50.0]
+      source: caliper_manual
+      tolerance_mm: 0.5
+    mass_kg: null            # TODO(사용자)
+    com_m: null              # TODO(사용자)
+    material: null           # TODO(사용자)
+    expect_scale_near: null  # 정규화된 CAD (실측 0.1032)
+
+  # ------------------------------------------------------------------------
+  # ↓↓↓ YCB 객체 5개를 여기에 추가한다. 아래 블록을 5번 복사해 채워라. ↓↓↓
+  #
+  #   <id> 는 data/meshes/<id>.glb, data/masks/<id>/, <id>_cad_fit.json 의 이름과
+  #   **정확히 같아야 한다.** (Obj_Step2 --objects, Obj_Step3c --cad 에 쓴 그 이름)
+  #
+  # <id>:
+  #   name: <사람이 읽는 이름>          # 예: mustard_bottle
+  #   cad: data/meshes/<id>.glb
+  #   measured:
+  #     extents_mm: [null, null, null]  # TODO: 캘리퍼로 잰 실측 (내림차순 L1>=L2>=L3)
+  #     source: caliper_manual
+  #     tolerance_mm: 0.5
+  #   mass_kg: null                     # TODO: 저울 측정
+  #   com_m: null
+  #   material: null
+  #   expect_scale_near: 1.0            # YCB mesh 는 이미 실척 → scale 이 1.0 근처여야 정상
+  # ------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Trial
+#   objects: auto  → mask_dir 와 fit_dir 를 스캔해 자동 탐색 (권장).
+#                    객체를 추가해도 이 파일을 안 고쳐도 된다.
+#                    명시하려면 리스트로: objects: [peg, hole, mustard]
+#   fp_dir         Obj_Step5 (FoundationPose) 출력 root. <fp_dir>/<obj>/T_C0_obj.json.
+#                  아직 안 돌렸으면 null → pose 는 Obj_Step3c 의 silhouette fit 을 쓴다.
+# ---------------------------------------------------------------------------
+trials:
+  - id: trial_0001
+    capture_dir: data/capture_obj
+    mask_dir: data/masks
+    fit_dir: data/outputs_cad_fit
+    fp_dir: null
+    objects: auto
+
+# --trials <dir> 로 root 를 넘기면 아래 layout 을 가진 하위 폴더를 trial 로 자동 인식한다.
+trial_discovery:
+  capture_subdir: capture_obj
+  mask_subdir: masks
+  fit_subdir: outputs_cad_fit
+  fp_subdir: fp_pose
+
+# ---------------------------------------------------------------------------
+# Export 품질 게이트
+#   재투영 IoU 는 exporter 가 직접 재계산한다 (내보낸 mesh + 내보낸 pose 를 실제 mask 에
+#   투영). 여기서 걸리면 pose/scale/centering 중 하나가 깨진 것이다.
+# ---------------------------------------------------------------------------
+quality_gates:
+  min_reprojection_iou: 0.80   # 미만인 (trial, obj, cam) 은 invalid 로 보고
+  min_mask_pixels: 50
+  max_size_error_mm: 5.0       # measured 대비 추정 치수 오차 상한 (경고)
+  scale_tolerance: 0.2         # expect_scale_near 대비 허용 상대오차 (±20%)
+
+# ---------------------------------------------------------------------------
+# Isaac Sim 담당자용 파라미터 (이 repo 는 소비하지 않고 manifest 로 전달만 한다)
+# ---------------------------------------------------------------------------
+isaac:
+  scale_sweep:
+    uniform_percent: [-10, -5, -3, 0, 3, 5, 10]
+    anisotropic: false         # true 면 축별 독립 sweep
+    hold_mass_constant: true   # scale 만 바꾸고 mass 는 실측값 고정
+    seed: 0
+  grasp_ablation:
+    lift_height_m: 0.10
+    hold_duration_s: 2.0
+    episode_timeout_s: 20.0
+    seed: 0
+    robot_usd: null            # TODO(Isaac 담당자)
+    gripper_usd: null          # TODO(Isaac 담당자)
+    policy_checkpoint: null    # TODO(Isaac 담당자)
+    friction: null             # TODO(Isaac 담당자)
+  conditions:
+    # size_source: measured | estimated     pose_source: isaac_predefined | pipeline
+    oracle:        {size_source: measured,  pose_source: isaac_predefined}
+    scale_only:    {size_source: estimated, pose_source: isaac_predefined}
+    pose_only:     {size_source: measured,  pose_source: pipeline}
+    full_pipeline: {size_source: estimated, pose_source: pipeline}

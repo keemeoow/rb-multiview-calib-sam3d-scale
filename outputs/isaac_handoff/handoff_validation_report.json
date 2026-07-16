@@ -1,0 +1,31 @@
+{
+  "package": "/Users/woo/Documents/GitHub/Robot-Lab/rb-multiview-calib-sam3d-scale/outputs/isaac_handoff",
+  "num_objects": 2,
+  "num_trials": 1,
+  "num_cameras": 3,
+  "valid_trials": 1,
+  "excluded_trials": [],
+  "missing_files": [],
+  "bad_poses": [],
+  "bad_masks": [],
+  "todo_fields": [
+    "hole.mass_kg",
+    "peg.mass_kg"
+  ],
+  "pending_objects": [],
+  "checks_run": 62,
+  "errors": [],
+  "warnings": [
+    {
+      "where": "object/hole",
+      "field": "mass_kg",
+      "message": "질량 미측정 (null) — Isaac 물리 시뮬레이션에 필요"
+    },
+    {
+      "where": "object/peg",
+      "field": "mass_kg",
+      "message": "질량 미측정 (null) — Isaac 물리 시뮬레이션에 필요"
+    }
+  ],
+  "ready_for_isaac_sim": true
+}

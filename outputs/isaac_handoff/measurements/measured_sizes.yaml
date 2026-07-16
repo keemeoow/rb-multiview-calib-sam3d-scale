@@ -1,0 +1,22 @@
+peg:
+  name: peg
+  measured_extents_mm:
+  - 45.0
+  - 30.0
+  - 30.0
+  measured_source: caliper_manual
+  tolerance_mm: 0.5
+  mass_kg: null
+  com_m: null
+  material: null
+hole:
+  name: hole
+  measured_extents_mm:
+  - 50.0
+  - 50.0
+  - 50.0
+  measured_source: caliper_manual
+  tolerance_mm: 0.5
+  mass_kg: null
+  com_m: null
+  material: null
