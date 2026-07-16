@@ -1,0 +1,62 @@
+{
+  "obj": "objhole",
+  "mesh_source": "sam3d",
+  "mesh": "data(3)/outputs_sam3d_fit/objhole/objhole_sam3d.glb",
+  "method": "sam3d_multiview_silhouette",
+  "shape_trusted": false,
+  "shape_ok_by_iou": true,
+  "min_iou_threshold": 0.85,
+  "w_depth": 0.0,
+  "scale_mesh_to_world": 0.10357937146090967,
+  "T_world_mesh_4x4": [
+    [
+      -0.7045117424320588,
+      0.03569713382149982,
+      -0.7087939894019096,
+      0.07978475458032643
+    ],
+    [
+      -0.09625149313310245,
+      0.9847001663900268,
+      0.1452626324320942,
+      0.049823957651497656
+    ],
+    [
+      0.7031350189295033,
+      0.17056171008870458,
+      -0.6902969275656845,
+      0.5959007317342795
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "extents_m": [
+    0.05113835706875587,
+    0.04922278152821675,
+    0.04917909923889611
+  ],
+  "extents_mm_sorted_desc": [
+    51.13835706875587,
+    49.22278152821675,
+    49.17909923889611
+  ],
+  "per_view_iou": [
+    0.9768629984144694,
+    0.9748999389457974,
+    0.9744313465050639
+  ],
+  "mean_iou": 0.9753980946217768,
+  "depth_rms_mm": 1.9514127400867154,
+  "cloud_obb_extents_mm_sorted_desc": [
+    52.913267279889155,
+    52.54067827349568,
+    51.10715899860152
+  ],
+  "init_cloud_points": 3954,
+  "scaled_glb": "data(3)/outputs_sam3d_fit/objhole/objhole_sam3d_scaled.glb",
+  "note": "scale \uc740 \uc2e4\ub8e8\uc5e3\uc5d0\uc11c \ub098\uc628\ub2e4 (depth/\uc810\uad70 OBB \uc544\ub2d8). SAM3D \ud615\uc0c1\uc740 \ucd94\uc815\uce58\ub77c mean_iou \uac00 \uce58\uc218 \uc2e0\ub8b0\ub3c4\ub97c \ub098\ud0c0\ub0b8\ub2e4."
+}

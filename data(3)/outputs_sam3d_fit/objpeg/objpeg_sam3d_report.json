@@ -1,0 +1,96 @@
+{
+  "image": "data(3)/outputs_sam3d_fit/objpeg/objpeg_cam0_rgb.png",
+  "mask": "data(3)/outputs_sam3d_fit/objpeg/objpeg_cam0_mask.png",
+  "sam3d_glb": "data(3)/outputs_sam3d_fit/objpeg/objpeg_sam3d.glb",
+  "sam3d_gs_ply": null,
+  "seed": 42,
+  "export_key": "glb",
+  "output_summary": {
+    "output_keys": [
+      "6drotation_normalized",
+      "coords",
+      "coords_original",
+      "downsample_factor",
+      "gaussian",
+      "glb",
+      "gs",
+      "mesh",
+      "pointmap",
+      "pointmap_colors",
+      "rotation",
+      "scale",
+      "shape",
+      "translation",
+      "translation_scale"
+    ],
+    "6drotation_normalized": {
+      "type": "<class 'torch.Tensor'>"
+    },
+    "scale": {
+      "type": "<class 'torch.Tensor'>"
+    },
+    "shape": {
+      "type": "<class 'torch.Tensor'>"
+    },
+    "translation": {
+      "type": "<class 'torch.Tensor'>"
+    },
+    "translation_scale": {
+      "type": "<class 'torch.Tensor'>"
+    },
+    "coords_original": {
+      "type": "<class 'torch.Tensor'>"
+    },
+    "coords": {
+      "type": "<class 'torch.Tensor'>"
+    },
+    "downsample_factor": {
+      "type": "<class 'int'>"
+    },
+    "rotation": {
+      "type": "<class 'torch.Tensor'>"
+    },
+    "mesh": {
+      "type": "<class 'list'>"
+    },
+    "gaussian": {
+      "type": "<class 'list'>"
+    },
+    "glb": {
+      "type": "<class 'trimesh.base.Trimesh'>",
+      "vertices": 592558,
+      "faces": 1185108
+    },
+    "gs": {
+      "type": "<class 'sam3d_objects.model.backbone.tdfy_dit.representations.gaussian.gaussian_model.Gaussian'>"
+    },
+    "pointmap": {
+      "type": "<class 'torch.Tensor'>"
+    },
+    "pointmap_colors": {
+      "type": "<class 'torch.Tensor'>"
+    }
+  },
+  "translation": [
+    [
+      0.01654435135424137,
+      -0.12823572754859924,
+      0.8148281574249268
+    ]
+  ],
+  "scale": [
+    [
+      0.07256178557872772,
+      0.07256178557872772,
+      0.07256178557872772
+    ]
+  ],
+  "rotation": [
+    [
+      0.4141141474246979,
+      0.4359966516494751,
+      -0.583412766456604,
+      -0.5459358096122742
+    ]
+  ]
+}

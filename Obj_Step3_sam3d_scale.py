@@ -183,6 +183,31 @@ def load_mesh_any(path: str | Path) -> trimesh.Trimesh:
     return mesh
 
 
+def decimate_mesh(mesh: trimesh.Trimesh, target_faces: int,
+                  obj_tag: str = "") -> trimesh.Trimesh:
+    """실루엣 정합용으로 메시 면 수를 줄인다 (quadric decimation).
+
+    SAM3D native 메시는 0.5~1.2M face 라, render_silhouette(삼각형마다 fillConvexPoly)
+    를 Powell 이 수천 번 호출하면 물체 하나 정합에 1시간+ 걸린다. 실루엣은 외곽만
+    필요하므로 ~30K face 로 줄여도 결과는 사실상 동일하고 수십 배 빨라진다.
+    trimesh.simplify_quadric_decimation 은 fast_simplification 패키지에 의존하므로
+    (GB10 sam3d env 에 미설치) open3d 로 감산한다.
+    """
+    if target_faces <= 0 or len(mesh.faces) <= target_faces:
+        return mesh
+    me = o3d.geometry.TriangleMesh(
+        o3d.utility.Vector3dVector(np.ascontiguousarray(mesh.vertices, dtype=np.float64)),
+        o3d.utility.Vector3iVector(np.ascontiguousarray(mesh.faces, dtype=np.int32)))
+    dec = me.simplify_quadric_decimation(int(target_faces))
+    V = np.asarray(dec.vertices, dtype=np.float64)
+    F = np.asarray(dec.triangles)
+    if len(F) == 0:
+        print(f"[{obj_tag}] decimation 결과가 비어 원본 메시를 사용합니다.")
+        return mesh
+    print(f"[{obj_tag}] mesh decimate: {len(mesh.faces)} -> {len(F)} faces (silhouette fit 가속)")
+    return trimesh.Trimesh(vertices=V, faces=F, process=False)
+
+
 # ============================================================
 # Mask utilities
 # ============================================================
@@ -883,6 +908,7 @@ def estimate_size_silhouette(
     max_fev: int,
     min_iou: float,
     save_overlay: bool,
+    decimate_faces: int = 30000,
 ) -> Optional[dict]:
     """SAM3D 메시를 다중뷰 실루엣에 정합해 metric 크기를 구한다 (경로 1과 동일 엔진).
 
@@ -900,6 +926,9 @@ def estimate_size_silhouette(
         return None
 
     mesh = load_mesh_any(mesh_path)
+    # 정합 전 감산: SAM3D 고밀도 메시(0.5~1.2M face)를 그대로 넣으면 물체당 1시간+ 걸린다.
+    # 정합·저장·오버레이 모두 같은 감산 메시를 써서 치수 일관성 검사를 유지한다.
+    mesh = decimate_mesh(mesh, decimate_faces, obj_tag=obj_tag)
     fit = fit_cad_to_views(mesh, np.asarray(init_cloud, dtype=np.float64), views,
                            w_depth=w_depth, max_fev=max_fev)
     ext = np.sort(fit["extents_m"])[::-1] * 1000.0
@@ -1031,6 +1060,9 @@ def main() -> None:
                         help="크기 정합 Powell 최적화 최대 함수 평가 수.")
     parser.add_argument("--size_min_iou", type=float, default=0.85,
                         help="mean IoU 가 이 값 미만이면 SAM3D 형상이 관측과 어긋난 것으로 보고 경고.")
+    parser.add_argument("--size_decimate_faces", type=int, default=30000,
+                        help="크기 정합 전 SAM3D 메시를 이 면 수로 감산(quadric). SAM3D 고밀도 "
+                             "메시로 인한 1시간+ 정합을 수 분으로 줄인다. 0=감산 안 함.")
     parser.add_argument("--size_save_overlay", action="store_true",
                         help="마스크 vs 정합된 SAM3D 실루엣 오버레이(<obj>_size_overlay.jpg) 저장.")
 
@@ -1217,6 +1249,7 @@ def main() -> None:
                     max_fev=args.size_max_fev,
                     min_iou=args.size_min_iou,
                     save_overlay=args.size_save_overlay,
+                    decimate_faces=args.size_decimate_faces,
                 )
 
         results_summary[obj_id] = {

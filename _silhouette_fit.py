@@ -371,7 +371,9 @@ def clean_cloud(pts: np.ndarray, voxel_m="auto", nb_neighbors=20, std_ratio=2.0,
         print(f"  [{src}] voxel {voxel_m*1000:.2f} mm  dbscan_eps {dbscan_eps_m*1000:.2f} mm "
               f"(from {len(pts)} pts)")
     pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(pts)
+    # Open3D 0.18(aarch64)의 Vector3dVector 는 non-C-contiguous 버퍼를 받으면 segfault 한다.
+    # vstack 결과가 F-contiguous 로 나올 수 있어 C-contiguous float64 로 강제한다.
+    pcd.points = o3d.utility.Vector3dVector(np.ascontiguousarray(pts, dtype=np.float64))
     if voxel_m > 0:
         pcd = pcd.voxel_down_sample(voxel_m)
     pcd, _ = pcd.remove_statistical_outlier(nb_neighbors, std_ratio)
