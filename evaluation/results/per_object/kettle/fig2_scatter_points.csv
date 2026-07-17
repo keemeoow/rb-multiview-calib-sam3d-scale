@@ -1,0 +1,4 @@
+object_name,axis,method,gt_mm,est_mm
+kettle,L,baseline_sam3d,116.0,117.30750831475608
+kettle,W,baseline_sam3d,68.0,69.0904286220488
+kettle,H,baseline_sam3d,65.0,67.02256333301595

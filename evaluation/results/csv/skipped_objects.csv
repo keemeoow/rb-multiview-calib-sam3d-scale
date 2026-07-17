@@ -1,0 +1,3 @@
+object_name,method,stage,reason
+kettle,oracle_cad,metric_scale,정답 CAD 없음 — 이 물체는 baseline 전용
+kettle,oracle_cad,silhouette,정답 CAD 없음 — 이 물체는 baseline 전용

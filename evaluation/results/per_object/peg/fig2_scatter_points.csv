@@ -1,0 +1,7 @@
+object_name,axis,method,gt_mm,est_mm
+peg,L,baseline_sam3d,45.0,44.48829305620022
+peg,W,baseline_sam3d,30.0,28.810877577087474
+peg,H,baseline_sam3d,30.0,28.640908264934083
+peg,L,oracle_cad,45.0,44.308226560221236
+peg,W,oracle_cad,30.0,29.005742907309074
+peg,H,oracle_cad,30.0,28.111512450233775

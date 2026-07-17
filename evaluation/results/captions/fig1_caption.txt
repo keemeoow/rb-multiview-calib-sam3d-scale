@@ -1,0 +1,1 @@
+Figure 1. Mean Dimension Error (E_dim) per object for Baseline (SAM3D cue mesh) and Oracle (ground-truth CAD cue mesh) under the identical Sim(3) silhouette-fitting engine. Lower is better. The rightmost group is the across-object mean. The Baseline-Oracle gap is the change in final dimension error attributable to replacing the SAM3D cue mesh with the ground-truth CAD.

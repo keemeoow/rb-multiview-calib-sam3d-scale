@@ -1,0 +1,1 @@
+Figure 3. Per-axis absolute error (mm). Lower is better. Cells marked n/d have undetermined ground truth. This view exposes anisotropic shape distortion that the per-object mean hides.

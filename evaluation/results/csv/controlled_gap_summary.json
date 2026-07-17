@@ -1,0 +1,12 @@
+{
+  "n_objects": 3,
+  "gap_uncontrolled_mean_mm": -0.04376225282119175,
+  "gap_uncontrolled_std_mm": 0.1236721821799221,
+  "gap_controlled_mean_mm": -0.062207041940355035,
+  "gap_controlled_std_mm": 0.1216631318978991,
+  "oracle_iso_mean_E_dim_mm": 0.8086140572867461,
+  "oracle_aniso_mean_E_dim_mm": 0.8270588464059093,
+  "baseline_mean_E_dim_mm": 0.7648518044655542,
+  "interpretation": "gap_controlled 는 Baseline 과 Oracle 이 **같은 비등방 변환족**일 때의 차이라, 단서 메시(SAM3D vs 정답 CAD) 형상 차이가 최종 치수 오차에 미친 영향에 더 가깝다. gap_uncontrolled 에는 등방/비등방 차이가 섞여 있다. 여전히 SAM3D 의 '순수 형상 오차'라고 단정할 수는 없다 — 마스크 품질, 캘리브레이션, 최적화 국소해 등 통제되지 않은 요인이 남아 있다.",
+  "caveat": "n=3 로 표본이 매우 적다. descriptive 로만 읽을 것."
+}

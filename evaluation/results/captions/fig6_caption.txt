@@ -1,0 +1,1 @@
+Figure 6. Cross-view silhouette IoU vs Mean Dimension Error (Baseline). Tests whether IoU is a usable proxy for dimensional accuracy. With only a handful of objects the correlation coefficients are descriptive only.

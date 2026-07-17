@@ -1,0 +1,126 @@
+# evaluation_config.yaml — Real-to-Sim 크기 추정 정량 평가의 단일 진입 설정
+#
+#   python evaluation/run_all_evaluations.py \
+#     --config evaluation/evaluation_config.yaml --output evaluation/results
+#
+# 경로는 모두 repo root 기준 상대경로다.
+#
+# ---------------------------------------------------------------------------
+# 평가 대상 (2가지)
+#   1. 실측 대비 metric scale / mesh 크기 정확도   -> gt_mm vs extents
+#   2. 멀티뷰 Real-to-Sim silhouette 정합 정확도  -> IoU, contour distance
+#
+# 비교 방법 (동일 Sim(3) 엔진, 단서 mesh 만 다름)
+#   baseline_sam3d : SAM3D 가 단일 RGB+mask 로 만든 unitless mesh  (실제 운용)
+#   oracle_cad     : 정답 CAD                                      (정확도 상한)
+# ---------------------------------------------------------------------------
+
+seed: 0
+iou_threshold: 0.85          # shape_ok_by_iou 판정 기준 (Obj_Step3_sam3d_scale 기본값과 동일)
+cameras: [cam0, cam1, cam2]
+supersample: 2               # 실루엣 래스터화 슈퍼샘플 (_silhouette_fit.SUPERSAMPLE 과 일치)
+# baseline sim 마스크 재현용. 파이프라인 --size_decimate_faces 기본값과 같아야 한다.
+decimate_faces: 30000
+
+# GT 축 대응
+#   파이프라인은 치수를 내림차순(L1>=L2>=L3)으로 보고하고 GT 도 내림차순으로 준다.
+#   즉 "크기 rank" 대응이며, 정렬된 두 수열을 identity 로 맞추는 것이 |차이| 합을 최소화하는
+#   최적 순열이다 (rearrangement inequality). 그래도 검증을 위해 6개 순열을 모두 탐색해
+#   rank 대응과 일치하는지 결과에 기록한다.
+axis_labels: [L, W, H]       # L=L1(최장), W=L2, H=L3
+
+objects:
+
+  - name: peg
+    display_name: Peg
+    shape_class: simple          # 원기둥 계열, 볼록
+    capture_dir: "data(3)/capture_obj"
+    mask_dir: "data(3)/masks/peg"
+    source_camera: cam0          # SAM3D 입력 뷰. 근거: objpeg_cam0_rgb.png (SAM3D 입력 저장본)
+    gt_mm: [45.0, 30.0, 30.0]    # 내림차순 L1>=L2>=L3
+    gt_source: caliper_manual    # configs/evaluation.yaml 의 measured 값
+    gt_tol_mm: 0.5
+    oracle:
+      fit_json: "data(3)/outputs_cad_fit/peg_cad_fit.json"
+      mesh: "data(3)/meshes/peg.glb"
+    baseline:
+      size_json: "data(3)/outputs_sam3d_fit/objpeg/objpeg_size.json"
+      # size_json 의 mesh 경로는 폴더 이동으로 깨져 있어 실제 위치를 명시한다
+      mesh: "data(3)/outputs_sam3d_fit_lastdata/objpeg/objpeg_sam3d.glb"
+
+  - name: hole
+    display_name: Hole
+    shape_class: simple          # 구멍 있는 정육면체
+    capture_dir: "data(3)/capture_obj"
+    mask_dir: "data(3)/masks/hole"
+    source_camera: cam0          # 근거: objhole_cam0_rgb.png
+    gt_mm: [50.0, 50.0, 50.0]
+    gt_source: caliper_manual
+    gt_tol_mm: 0.5
+    oracle:
+      fit_json: "data(3)/outputs_cad_fit/hole_cad_fit.json"
+      mesh: "data(3)/meshes/hole.glb"
+    baseline:
+      size_json: "data(3)/outputs_sam3d_fit/objhole/objhole_size.json"
+      mesh: "data(3)/outputs_sam3d_fit_lastdata/objhole/objhole_sam3d.glb"
+
+  - name: T_shape
+    display_name: T-shape
+    shape_class: simple          # 박스 조합 (36 faces)
+    capture_dir: "data/capture_obj_01"
+    mask_dir: "data/masks_01/obj1"
+    source_camera: cam0          # objects_summary.json: sam3d_cam=cam0
+    # T_shape.glb 의 고유 OBB 가 정확히 150/100/50 이고 추정 scale 이 0.001(mm->m) 에
+    # 0.36% 로 수렴 -> mm 단위 설계 CAD. 설계값을 GT 로 쓴다 (캘리퍼 실측 아님).
+    gt_mm: [150.0, 100.0, 50.0]
+    gt_source: cad_design_nominal
+    gt_tol_mm: 0.5
+    oracle:
+      fit_json: "data/outputs_cad_01/obj1_cad_fit.json"
+      mesh: "data/T_shape.glb"
+    baseline:
+      size_json: "data/outputs_sam3d_01/obj1/obj1_size.json"
+
+  - name: kettle
+    display_name: Kettle
+    shape_class: complex         # 주둥이·손잡이 돌출
+    capture_dir: "data/capture_obj_02"
+    mask_dir: "data/masks_02/obj1"
+    source_camera: cam0          # objects_summary.json: sam3d_cam=cam0
+    # L1(최장축) 은 GT 미확정: 최소부피 OBB 의 최장축은 주둥이·손잡이 돌출까지 감싸는데
+    # 캘리퍼로 어느 두 점을 잰 것인지 대응이 정의되지 않는다 (110 -> 113 으로 바뀐 이력).
+    # L2/L3 는 oracle 이 0.03/0.10mm 로 재현하므로 확정으로 본다. null = 미확정 축.
+    # L1 은 OBB 를 이미지에 투영해 측정 구간을 확정한 뒤 재실측했다 (110 -> 113 -> 116).
+    # OBB 가 재는 구간: L1 = 바닥 접촉면 ~ 림/주둥이 최상단, L2 = 손잡이가 뻗은 가로,
+    # L3 = 그에 수직한 가로(≈ 바닥 지름).  근거: qualitative/kettle_obb_diagnostic.png
+    gt_mm: [116.0, 68.0, 65.0]
+    gt_source: caliper_manual
+    gt_tol_mm: 0.5
+    # ── kettle 은 **정답 CAD 가 없다** -> baseline 전용. oracle 항목 자체를 두지 않는다.
+    #
+    #   data/kettle_dec30k.glb 는 촬영한 그 주전자의 모델이 아니다:
+    #     - 세로축 azimuth 전탐색(0~350°) + 거울상까지 시도해도 mean IoU 상한이 0.886.
+    #       같은 최적화기가 SAM3D 메시로는 0.978 을 얻는다 -> 포즈가 아니라 메시가 다르다.
+    #     - cam0 에서 CAD 실루엣이 마스크의 13%(2421px, 손잡이 영역)를 덮지 못한다.
+    #     - watertight 도 아니다 (euler=-4).
+    #   형상이 틀린 mesh 는 "형상이 완벽할 때의 상한"이라는 oracle 의 정의를 만족하지 않으므로
+    #   oracle 로 쓸 수 없다. 근거: results/qualitative/kettle_cad_mismatch_diagnostic.png
+    #
+    #   GT 는 OBB 를 이미지에 투영해 측정 구간을 특정한 뒤 재실측해 확정했다 (110 -> 113 -> 116).
+    #   OBB 가 재는 구간: L1 = 바닥 접촉면 ~ 림/주둥이 최상단, L2 = 손잡이가 뻗은 가로,
+    #   L3 = 그에 수직한 가로(≈ 바닥 지름).  근거: results/qualitative/kettle_obb_diagnostic.png
+    baseline:
+      size_json: "data/outputs_sam3d_02/obj1/obj1_size.json"
+
+# ---------------------------------------------------------------------------
+# 그림 스타일 (논문 품질 통일)
+# ---------------------------------------------------------------------------
+style:
+  dpi: 300
+  formats: [png]               # PNG 만 저장 (벡터 포맷 미사용)
+  facecolor: white
+  font_size: 11
+  # Baseline/Oracle 색상은 모든 그림에서 고정 (엔티티 고정 원칙)
+  color_baseline: "#2a78d6"
+  color_oracle: "#1baf7a"
+  color_ref: "#52514e"

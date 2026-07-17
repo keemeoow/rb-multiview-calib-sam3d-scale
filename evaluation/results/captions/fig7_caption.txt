@@ -1,0 +1,1 @@
+Figure 7. Qualitative Real-to-Sim alignment. Green: real SAM mask contour. Red: simulated silhouette of the fitted mesh. The SAM3D source view is faded because the cue mesh was generated from it; the cross-view panels show generalization.

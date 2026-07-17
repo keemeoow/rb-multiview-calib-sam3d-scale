@@ -1,0 +1,15 @@
+{
+  "n_pairs": 3,
+  "objects": [
+    "peg",
+    "hole",
+    "T_shape"
+  ],
+  "baseline_mean": 0.7648518044655542,
+  "oracle_mean": 0.8086140572867461,
+  "paired_t_statistic": -0.6128980988602967,
+  "paired_t_pvalue": 0.6023531131319954,
+  "wilcoxon_statistic": 2.0,
+  "wilcoxon_pvalue": 0.75,
+  "caveat": "표본이 매우 적어 p-value 를 과도하게 해석하지 말 것. descriptive statistics 중심으로 보고한다."
+}

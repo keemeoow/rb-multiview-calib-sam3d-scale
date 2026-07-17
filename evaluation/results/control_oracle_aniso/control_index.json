@@ -1,0 +1,5 @@
+{
+  "peg": "evaluation/results/control_oracle_aniso/peg_cad_fit_aniso.json",
+  "hole": "evaluation/results/control_oracle_aniso/hole_cad_fit_aniso.json",
+  "T_shape": "evaluation/results/control_oracle_aniso/T_shape_cad_fit_aniso.json"
+}

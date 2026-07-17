@@ -1,0 +1,37 @@
+object_name,display_name,axis,source,value_mm,error_mm,note
+peg,Peg,L1,GT,45.0,,caliper_manual
+peg,Peg,L2,GT,30.0,,caliper_manual
+peg,Peg,L3,GT,30.0,,caliper_manual
+peg,Peg,L1,SAM3D,44.48829305620022,0.5117069437997799,
+peg,Peg,L2,SAM3D,28.81087757708747,1.1891224229125257,
+peg,Peg,L3,SAM3D,28.640908264934083,1.3590917350659169,
+peg,Peg,L1,Oracle,44.30822656022123,0.691773439778764,
+peg,Peg,L2,Oracle,29.00574290730907,0.9942570926909262,
+peg,Peg,L3,Oracle,28.111512450233775,1.888487549766225,
+hole,Hole,L1,GT,50.0,,caliper_manual
+hole,Hole,L2,GT,50.0,,caliper_manual
+hole,Hole,L3,GT,50.0,,caliper_manual
+hole,Hole,L1,SAM3D,51.03049042796988,1.0304904279698803,
+hole,Hole,L2,SAM3D,49.11978842493137,0.8802115750686283,
+hole,Hole,L3,SAM3D,49.067637238980474,0.932362761019526,
+hole,Hole,L1,Oracle,50.863775193837455,0.8637751938374549,
+hole,Hole,L2,Oracle,50.75856459216047,0.758564592160468,
+hole,Hole,L3,Oracle,49.00534863417387,0.9946513658261296,
+T_shape,T-shape,L1,GT,150.0,,cad_design_nominal
+T_shape,T-shape,L2,GT,100.0,,cad_design_nominal
+T_shape,T-shape,L3,GT,50.0,,cad_design_nominal
+T_shape,T-shape,L1,SAM3D,150.6115997151543,0.6115997151543127,
+T_shape,T-shape,L2,SAM3D,99.77380689541474,0.2261931045852634,
+T_shape,T-shape,L3,SAM3D,50.142887554614155,0.1428875546141554,
+T_shape,T-shape,L1,Oracle,149.45699135923962,0.5430086407603767,
+T_shape,T-shape,L2,Oracle,99.63799423949308,0.3620057605069178,
+T_shape,T-shape,L3,Oracle,49.81899711974655,0.1810028802534518,
+kettle,Kettle,L1,GT,116.0,,caliper_manual
+kettle,Kettle,L2,GT,68.0,,caliper_manual
+kettle,Kettle,L3,GT,65.0,,caliper_manual
+kettle,Kettle,L1,SAM3D,117.30750831475608,1.3075083147560775,
+kettle,Kettle,L2,SAM3D,69.0904286220488,1.0904286220488046,
+kettle,Kettle,L3,SAM3D,67.02256333301595,2.0225633330159525,
+kettle,Kettle,L1,Oracle,,,정답 CAD 없음
+kettle,Kettle,L2,Oracle,,,정답 CAD 없음
+kettle,Kettle,L3,Oracle,,,정답 CAD 없음
