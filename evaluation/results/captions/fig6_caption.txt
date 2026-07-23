@@ -1,1 +1,1 @@
-Figure 6. Cross-view silhouette IoU vs Mean Dimension Error (Baseline). Tests whether IoU is a usable proxy for dimensional accuracy. With only a handful of objects the correlation coefficients are descriptive only.
+Figure 6. Qualitative Real-to-Sim alignment. Green: real SAM mask contour. Red: simulated silhouette of the fitted mesh. The SAM3D source view is faded because the cue mesh was generated from it; the cross-view panels show generalization.

@@ -109,7 +109,7 @@ def per_object(cfg, cam_df, outdir: Path, formats=None, also_dir: Path | None = 
             panel(ax, rgb, real, sim, f"{cid}  ·  {tag}",
                   f"IoU {iou:.3f}   ·   D_contour {dc:.2f}%", faded=is_src)
         name_disp = o.get("display_name", o["name"])
-        fig.suptitle(f"7. Qualitative Real-to-Sim — {name_disp} (three views)\n"
+        fig.suptitle(f"6. Qualitative Real-to-Sim — {name_disp} (three views)\n"
                      f"Real (green) vs Sim (red) silhouette   |   "
                      f"SAM3D source: {o.get('source_camera')}",
                      fontsize=12.5, fontweight="bold", x=0.0, y=1.0, ha="left", va="bottom")
@@ -118,7 +118,7 @@ def per_object(cfg, cam_df, outdir: Path, formats=None, also_dir: Path | None = 
         if also_dir is not None:
             d = also_dir / o["name"]
             d.mkdir(parents=True, exist_ok=True)
-            targets.append(d / "fig7_qualitative_three_views.{}")
+            targets.append(d / "fig6_qualitative_three_views.{}")
         for t in targets:
             for ext in formats:
                 fig.savefig(str(t).format(ext), dpi=cfg["style"]["dpi"],
@@ -148,14 +148,14 @@ def pick_representatives(obj_df):
 def grid(cfg, obj_df, cam_df, outdir: Path):
     names = pick_representatives(obj_df)
     if not names:
-        print("  [SKIP] fig7: 대표 객체를 고를 수 없음")
+        print("  [SKIP] fig6: 대표 객체를 고를 수 없음")
         return []
     by = {o["name"]: o for o in cfg["objects"]}
     rows = []
     for n in names:
         p, err = _panels_for(by[n], cfg)
         if p is None:
-            print(f"  [SKIP] fig7 row {n}: {err}")
+            print(f"  [SKIP] fig6 row {n}: {err}")
             continue
         rows.append((n, p))
     if not rows:
@@ -185,7 +185,7 @@ def grid(cfg, obj_df, cam_df, outdir: Path):
         axes[i, 0].text(-0.06, 0.5, f"{r.display_name}\n\n{gt}\n{es}\n{ed}",
                         transform=axes[i, 0].transAxes, ha="right", va="center",
                         fontsize=9.2, family="monospace", color="#0b0b0b")
-    fig.suptitle("Figure 7. Qualitative Real-to-Sim Grid\n"
+    fig.suptitle("6. Qualitative Real-to-Sim Grid\n"
                  "Real (green) vs Sim (red) silhouette;  source view is faded, "
                  "cross-view panels show generalization",
                  fontsize=13.5, fontweight="bold", x=0.0, y=1.0, ha="left", va="bottom")
@@ -193,9 +193,9 @@ def grid(cfg, obj_df, cam_df, outdir: Path):
     outdir.mkdir(parents=True, exist_ok=True)
     fmts = cfg["style"]["formats"]
     for ext in fmts:
-        fig.savefig(outdir / f"fig7_qualitative_real_to_sim_grid.{ext}",
+        fig.savefig(outdir / f"fig6_qualitative_real_to_sim_grid.{ext}",
                     dpi=cfg["style"]["dpi"], facecolor="white", bbox_inches="tight")
     plt.close(fig)
-    print(f"  [SAVE] fig7_qualitative_real_to_sim_grid.{{{','.join(fmts)}}}  "
+    print(f"  [SAVE] fig6_qualitative_real_to_sim_grid.{{{','.join(fmts)}}}  "
           f"(rows: {', '.join(names)})")
     return names

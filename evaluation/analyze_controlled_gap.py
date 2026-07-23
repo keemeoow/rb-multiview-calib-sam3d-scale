@@ -86,7 +86,8 @@ def main():
             oracle_aniso_E_dim_mm=mean_e,
             oracle_aniso_E_rel_percent=mean_rel,
             oracle_aniso_mean_iou=d["mean_iou"],
-            oracle_iso_mean_iou=o_iso.stored_mean_iou,
+            # 메인 평가 CSV 는 보고 지표만 담으므로 이 진단용 열은 없을 수 있다
+            oracle_iso_mean_iou=o_iso.get("stored_mean_iou"),
             oracle_aniso_extents_mm=json.dumps([round(x, 3) for x in m["est_matched"]]),
             gap_uncontrolled_mm=b.mean_dimension_error_mm - o_iso.mean_dimension_error_mm,
             gap_controlled_mm=(None if mean_e is None

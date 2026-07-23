@@ -37,6 +37,8 @@ def evaluate(cfg: dict):
                 skipped.append(dict(object_name=obj["name"], method=method,
                                     stage="metric_scale",
                                     reason=" ".join(str(obj.get("metric_exclusion_reason", "")).split())))
+            # 보고 지표는 축별 |오차| / E_dim / E_rel 셋뿐이다. GT·추정치는 그 오차를
+            # 읽기 위한 최소 문맥으로만 남기고, 나머지 진단용 필드는 저장하지 않는다.
             rows.append(dict(
                 object_name=obj["name"],
                 display_name=obj.get("display_name", obj["name"]),
@@ -44,7 +46,6 @@ def evaluate(cfg: dict):
                 method=method,
                 source_camera=obj.get("source_camera"),
                 gt_source=obj.get("gt_source"),
-                gt_note=obj.get("gt_note"),
                 gt_L_mm=gt[0], gt_W_mm=gt[1], gt_H_mm=gt[2],
                 estimated_L_mm=m["est_matched"][0],
                 estimated_W_mm=m["est_matched"][1],
@@ -53,24 +54,15 @@ def evaluate(cfg: dict):
                 mean_dimension_error_mm=mean_e,
                 mean_relative_dimension_error_percent=mean_rel,
                 gt_axes_used=n_axes,
-                gt_undetermined_axes=[i for i, g in enumerate(gt) if g is None],
                 excluded_from_metric_scale=excluded,
                 metric_exclusion_reason=(" ".join(str(obj["metric_exclusion_reason"]).split())
                                          if excluded else None),
-                axis_matching_method=m["method"],
-                axis_perm_search_agrees=m.get("agrees_with_rank"),
-                estimated_scale=meta.get("scale"),
-                estimated_scale_vec=meta.get("scale_vec"),
-                fit_method_name=meta.get("method_name"),
-                shape_ok_by_iou=meta.get("shape_ok"),
-                stored_mean_iou=meta.get("mean_iou"),
                 result_file_path=str(meta["json_path"].relative_to(ec._ROOT)),
             ))
-            e = m["est_matched"]
             fmt = lambda x: "   —  " if x is None else f"{x:6.2f}"
-            tail = ("  <- 크기평가 제외 (GT/CAD 불량)" if excluded else f"  ({n_axes}/3 axes)")
-            print(f"  {obj['name']:8s} {method:14s} est=[{e[0]:7.2f},{e[1]:6.2f},{e[2]:6.2f}]  "
-                  f"|Δ|=[{fmt(abs_e[0])},{fmt(abs_e[1])},{fmt(abs_e[2])}]  "
+            tail = ("  <- 크기평가 제외 (GT/CAD 불량)" if excluded else "")
+            print(f"  {obj['name']:8s} {method:14s} "
+                  f"|e|=[{fmt(abs_e[0])},{fmt(abs_e[1])},{fmt(abs_e[2])}] mm  "
                   f"E_dim={fmt(mean_e)} mm  E_rel="
                   f"{'  —  ' if mean_rel is None else f'{mean_rel:5.2f}%'}{tail}")
     return rows, skipped

@@ -1,7 +1,0 @@
-object_name,axis,method,gt_mm,est_mm
-T_shape,L,baseline_sam3d,150.0,150.6115997151543
-T_shape,W,baseline_sam3d,100.0,99.77380689541474
-T_shape,H,baseline_sam3d,50.0,50.142887554614155
-T_shape,L,oracle_cad,150.0,149.45699135923962
-T_shape,W,oracle_cad,100.0,99.63799423949308
-T_shape,H,oracle_cad,50.0,49.81899711974655

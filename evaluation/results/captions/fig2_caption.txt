@@ -1,1 +1,1 @@
-Figure 2. Estimated vs ground-truth dimension for every object-axis observation. The dashed line is y=x. Axes with undetermined ground truth are excluded. R^2 is shown for reference only and is not a primary metric.
+Figure 2. Mean Relative Dimension Error (E_rel, %) per object — each axis error divided by its ground-truth length before averaging, so objects of different size are comparable. Lower is better.

@@ -1,7 +1,0 @@
-object_name,axis,method,gt_mm,est_mm
-hole,L,baseline_sam3d,50.0,51.03049042796988
-hole,W,baseline_sam3d,50.0,49.11978842493137
-hole,H,baseline_sam3d,50.0,49.067637238980474
-hole,L,oracle_cad,50.0,50.863775193837455
-hole,W,oracle_cad,50.0,50.75856459216047
-hole,H,oracle_cad,50.0,49.00534863417387

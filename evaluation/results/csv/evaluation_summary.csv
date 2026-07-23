@@ -1,4 +1,3 @@
-method,object_count,mean_dimension_error_mean_mm,mean_dimension_error_std_mm,mean_relative_error_mean_percent,mean_relative_error_std_percent,cross_view_iou_mean,cross_view_iou_std,normalized_contour_distance_mean_percent,normalized_contour_distance_std_percent,iou_085_pass_count,iou_085_pass_rate_percent,mean_dimension_error_gap_mm,mean_dimension_error_gap_std_mm,relative_error_gap_percent_point
-baseline_sam3d,4,0.9420138758342351,0.4715084505881136,1.8399478633893456,1.1893978908403557,0.9715739052953731,0.00798340183242418,0.45745130772247683,0.1645024095873599,4.0,100.0,,,
-oracle_cad,3,0.8086140572867461,0.4184047094747586,1.940713633775425,1.6853087189908074,0.9718964498026255,0.011403157457812186,0.40910294594453916,0.15382484035314073,3.0,100.0,,,
-gap_baseline_minus_oracle,3,,,,,,,,,,,-0.04376225282119173,0.12367218217992211,-0.13660200928602312
+method,object_count,mean_dimension_error_mean_mm,mean_dimension_error_std_mm,mean_relative_error_mean_percent,mean_relative_error_std_percent,cross_view_iou_mean,cross_view_iou_std,normalized_contour_distance_mean_percent,normalized_contour_distance_std_percent
+baseline_sam3d,4,0.9420138758342351,0.4715084505881136,1.8399478633893456,1.1893978908403557,0.9715739052953731,0.00798340183242418,0.45745130772247683,0.1645024095873599
+oracle_cad,3,0.8086140572867461,0.4184047094747586,1.940713633775425,1.6853087189908074,0.9718964498026255,0.011403157457812186,0.40910294594453916,0.15382484035314073

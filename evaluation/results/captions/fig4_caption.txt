@@ -1,1 +1,1 @@
-Figure 4. Cross-view silhouette IoU (source view excluded from the mean). Higher is better. Dashed line marks the IoU=0.85 shape-trust threshold used by the pipeline. Crosses mark the SAM3D source view, which is excluded because the cue mesh was generated from it.
+Figure 4. Cross-view silhouette IoU (mean over cameras, SAM3D source view excluded because the cue mesh was generated from it). Higher is better. Open circles are the individual cross-view cameras.

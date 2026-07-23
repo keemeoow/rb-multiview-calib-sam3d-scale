@@ -67,21 +67,22 @@ def md_tables(cfg, obj: pd.DataFrame, long: pd.DataFrame) -> str:
         gt = [None if g is None else float(g) for g in o["gt_mm"]]
 
         out.append(f"\n## {disp}\n")
-        out.append("| | L1 | L2 | L3 | E_dim |")
-        out.append("|---|---|---|---|---|")
+        out.append("| | L1 | L2 | L3 | E_dim (mm) | E_rel (%) |")
+        out.append("|---|---|---|---|---|---|")
         out.append(f"| **GT ({o.get('gt_source')})** | {fmt(gt[0],1)} | {fmt(gt[1],1)} | "
-                   f"{fmt(gt[2],1)} | — |")
+                   f"{fmt(gt[2],1)} | — | — |")
 
         def row(df, label):
             if df.empty:
-                return f"| **{label}** | — | — | — | CAD 없음 |"
+                return f"| **{label}** | — | — | — | CAD 없음 | — |"
             r = df.iloc[0]
             cells = []
             for k in AXK:
                 v, e = r[f"estimated_{k}_mm"], r[f"abs_error_{k}_mm"]
                 cells.append(fmt(v) if pd.isna(e) else f"{fmt(v)}  ({fmt(e)})")
             ed = fmt(r.mean_dimension_error_mm)
-            return f"| **{label}** | {cells[0]} | {cells[1]} | {cells[2]} | {ed} |"
+            er = fmt(r.mean_relative_dimension_error_percent)
+            return f"| **{label}** | {cells[0]} | {cells[1]} | {cells[2]} | {ed} | {er} |"
 
         out.append(row(b, "SAM3D (baseline)"))
         out.append(row(orc, "Oracle (GT CAD)"))
