@@ -1,0 +1,26 @@
+경로 B — 4대 (엑스트린식 재캘리브 필요)
+
+CAM_PY=/home/sprout/anaconda3/envs/multicam_cube/bin/python3
+
+# 1) intrinsics 4대 @720p  ★ --fresh_map 쓰지 말 것
+python Calib_Step1_dump_intrinsics.py \
+  --color_w 1280 --color_h 720 --color_fps 6 \
+  --depth_w 1280 --depth_h 720 --depth_fps 6
+
+# 2) 큐브 촬영
+python Calib_Step2_capture_multi_cam.py \
+  --root_folder ./data/static_cams_session_03 --intrinsics_dir ./intrinsics \
+  --width 1280 --height 720 --fps 6 --min_markers 1 --show --preview_scale 0.4
+
+# 3) 캘리브
+python Calib_Step3_calibrate_multi_cam_cube.py \
+  --root_folder ./data/static_cams_session_03 --intrinsics_dir ./intrinsics \
+  --ref_cam_idx 0 --min_markers 1 --save_overlay
+
+# 4) 물체 촬영
+python Obj_Step1_capture_object.py \
+  --out_dir ./data/capture_obj_01 \
+  --intrinsics_dir ./intrinsics \
+  --transforms_json $TF \
+  --width 1280 --height 720 --fps 6 \
+  --depth_burst_n 10 --show --preview_scale 0.4

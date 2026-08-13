@@ -1,0 +1,903 @@
+{
+  "root_folder": "/home/sprout/Desktop/**jiwoo/rb-multiview-calib-sam3d-scale/data/static_cams_session_03",
+  "captures": [
+    {
+      "event_id": 0,
+      "cams": {
+        "0": {
+          "saved": true,
+          "ts_ms": 1786621960277.487,
+          "rgb_path": "cam0/rgb_00000.jpg",
+          "depth_path": "cam0/depth_00000.png",
+          "ids": [
+            4,
+            5
+          ]
+        },
+        "1": {
+          "saved": true,
+          "ts_ms": 1786621960381.4724,
+          "rgb_path": "cam1/rgb_00000.jpg",
+          "depth_path": "cam1/depth_00000.png",
+          "ids": [
+            3,
+            2,
+            1
+          ]
+        },
+        "2": {
+          "saved": true,
+          "ts_ms": 1786621960475.2021,
+          "rgb_path": "cam2/rgb_00000.jpg",
+          "depth_path": "cam2/depth_00000.png",
+          "ids": [
+            5,
+            2
+          ]
+        },
+        "3": {
+          "saved": true,
+          "ts_ms": 1786621960553.7915,
+          "rgb_path": "cam3/rgb_00000.jpg",
+          "depth_path": "cam3/depth_00000.png",
+          "ids": [
+            2,
+            0,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "event_id": 1,
+      "cams": {
+        "0": {
+          "saved": true,
+          "ts_ms": 1786621999139.1208,
+          "rgb_path": "cam0/rgb_00001.jpg",
+          "depth_path": "cam0/depth_00001.png",
+          "ids": [
+            4,
+            3,
+            1,
+            0
+          ]
+        },
+        "1": {
+          "saved": true,
+          "ts_ms": 1786621999243.7493,
+          "rgb_path": "cam1/rgb_00001.jpg",
+          "depth_path": "cam1/depth_00001.png",
+          "ids": [
+            2,
+            3
+          ]
+        },
+        "2": {
+          "saved": true,
+          "ts_ms": 1786621999337.5547,
+          "rgb_path": "cam2/rgb_00001.jpg",
+          "depth_path": "cam2/depth_00001.png",
+          "ids": [
+            5,
+            4
+          ]
+        },
+        "3": {
+          "saved": true,
+          "ts_ms": 1786621999472.627,
+          "rgb_path": "cam3/rgb_00001.jpg",
+          "depth_path": "cam3/depth_00001.png",
+          "ids": [
+            5,
+            2,
+            0,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "event_id": 2,
+      "cams": {
+        "0": {
+          "saved": true,
+          "ts_ms": 1786622044901.5212,
+          "rgb_path": "cam0/rgb_00002.jpg",
+          "depth_path": "cam0/depth_00002.png",
+          "ids": [
+            3,
+            2,
+            1
+          ]
+        },
+        "1": {
+          "saved": true,
+          "ts_ms": 1786622045003.5842,
+          "rgb_path": "cam1/rgb_00002.jpg",
+          "depth_path": "cam1/depth_00002.png",
+          "ids": [
+            2,
+            5
+          ]
+        },
+        "2": {
+          "saved": true,
+          "ts_ms": 1786622045097.7163,
+          "rgb_path": "cam2/rgb_00002.jpg",
+          "depth_path": "cam2/depth_00002.png",
+          "ids": [
+            4,
+            5
+          ]
+        },
+        "3": {
+          "saved": true,
+          "ts_ms": 1786622045240.088,
+          "rgb_path": "cam3/rgb_00002.jpg",
+          "depth_path": "cam3/depth_00002.png",
+          "ids": [
+            5,
+            0,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "event_id": 3,
+      "cams": {
+        "0": {
+          "saved": true,
+          "ts_ms": 1786622152401.6243,
+          "rgb_path": "cam0/rgb_00003.jpg",
+          "depth_path": "cam0/depth_00003.png",
+          "ids": [
+            3,
+            2
+          ]
+        },
+        "1": {
+          "saved": true,
+          "ts_ms": 1786622152505.711,
+          "rgb_path": "cam1/rgb_00003.jpg",
+          "depth_path": "cam1/depth_00003.png",
+          "ids": [
+            2,
+            5
+          ]
+        },
+        "2": {
+          "saved": true,
+          "ts_ms": 1786622152600.2263,
+          "rgb_path": "cam2/rgb_00003.jpg",
+          "depth_path": "cam2/depth_00003.png",
+          "ids": [
+            4,
+            0
+          ]
+        },
+        "3": {
+          "saved": true,
+          "ts_ms": 1786622152642.7478,
+          "rgb_path": "cam3/rgb_00003.jpg",
+          "depth_path": "cam3/depth_00003.png",
+          "ids": [
+            0,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "event_id": 4,
+      "cams": {
+        "0": {
+          "saved": true,
+          "ts_ms": 1786622225248.7305,
+          "rgb_path": "cam0/rgb_00004.jpg",
+          "depth_path": "cam0/depth_00004.png",
+          "ids": [
+            3,
+            2
+          ]
+        },
+        "1": {
+          "saved": true,
+          "ts_ms": 1786622225351.481,
+          "rgb_path": "cam1/rgb_00004.jpg",
+          "depth_path": "cam1/depth_00004.png",
+          "ids": [
+            5,
+            2,
+            0
+          ]
+        },
+        "2": {
+          "saved": true,
+          "ts_ms": 1786622225446.229,
+          "rgb_path": "cam2/rgb_00004.jpg",
+          "depth_path": "cam2/depth_00004.png",
+          "ids": [
+            4,
+            3
+          ]
+        },
+        "3": {
+          "saved": true,
+          "ts_ms": 1786622225638.7556,
+          "rgb_path": "cam3/rgb_00004.jpg",
+          "depth_path": "cam3/depth_00004.png",
+          "ids": [
+            0,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "event_id": 5,
+      "cams": {
+        "0": {
+          "saved": true,
+          "ts_ms": 1786622248631.2964,
+          "rgb_path": "cam0/rgb_00005.jpg",
+          "depth_path": "cam0/depth_00005.png",
+          "ids": [
+            2,
+            5
+          ]
+        },
+        "1": {
+          "saved": true,
+          "ts_ms": 1786622248736.5881,
+          "rgb_path": "cam1/rgb_00005.jpg",
+          "depth_path": "cam1/depth_00005.png",
+          "ids": [
+            4,
+            5,
+            0,
+            1
+          ]
+        },
+        "2": {
+          "saved": true,
+          "ts_ms": 1786622248830.9536,
+          "rgb_path": "cam2/rgb_00005.jpg",
+          "depth_path": "cam2/depth_00005.png",
+          "ids": [
+            3,
+            2
+          ]
+        },
+        "3": {
+          "saved": true,
+          "ts_ms": 1786622248853.9797,
+          "rgb_path": "cam3/rgb_00005.jpg",
+          "depth_path": "cam3/depth_00005.png",
+          "ids": [
+            3,
+            2,
+            1,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "event_id": 6,
+      "cams": {
+        "0": {
+          "saved": true,
+          "ts_ms": 1786622276389.9072,
+          "rgb_path": "cam0/rgb_00006.jpg",
+          "depth_path": "cam0/depth_00006.png",
+          "ids": [
+            5,
+            2
+          ]
+        },
+        "1": {
+          "saved": true,
+          "ts_ms": 1786622276495.015,
+          "rgb_path": "cam1/rgb_00006.jpg",
+          "depth_path": "cam1/depth_00006.png",
+          "ids": [
+            4,
+            3,
+            1,
+            0
+          ]
+        },
+        "2": {
+          "saved": true,
+          "ts_ms": 1786622276589.823,
+          "rgb_path": "cam2/rgb_00006.jpg",
+          "depth_path": "cam2/depth_00006.png",
+          "ids": [
+            2,
+            3
+          ]
+        },
+        "3": {
+          "saved": true,
+          "ts_ms": 1786622276582.5254,
+          "rgb_path": "cam3/rgb_00006.jpg",
+          "depth_path": "cam3/depth_00006.png",
+          "ids": [
+            2,
+            3,
+            1,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "event_id": 7,
+      "cams": {
+        "0": {
+          "saved": true,
+          "ts_ms": 1786622311719.2627,
+          "rgb_path": "cam0/rgb_00007.jpg",
+          "depth_path": "cam0/depth_00007.png",
+          "ids": [
+            4,
+            5
+          ]
+        },
+        "1": {
+          "saved": true,
+          "ts_ms": 1786622311824.383,
+          "rgb_path": "cam1/rgb_00007.jpg",
+          "depth_path": "cam1/depth_00007.png",
+          "ids": [
+            3,
+            1
+          ]
+        },
+        "2": {
+          "saved": true,
+          "ts_ms": 1786622311919.243,
+          "rgb_path": "cam2/rgb_00007.jpg",
+          "depth_path": "cam2/depth_00007.png",
+          "ids": [
+            5,
+            2
+          ]
+        },
+        "3": {
+          "saved": true,
+          "ts_ms": 1786622311992.6868,
+          "rgb_path": "cam3/rgb_00007.jpg",
+          "depth_path": "cam3/depth_00007.png",
+          "ids": [
+            5,
+            2,
+            0,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "event_id": 8,
+      "cams": {
+        "0": {
+          "saved": true,
+          "ts_ms": 1786622340319.0962,
+          "rgb_path": "cam0/rgb_00008.jpg",
+          "depth_path": "cam0/depth_00008.png",
+          "ids": [
+            4,
+            5
+          ]
+        },
+        "1": {
+          "saved": true,
+          "ts_ms": 1786622340424.378,
+          "rgb_path": "cam1/rgb_00008.jpg",
+          "depth_path": "cam1/depth_00008.png",
+          "ids": [
+            3,
+            2,
+            1
+          ]
+        },
+        "2": {
+          "saved": true,
+          "ts_ms": 1786622340519.426,
+          "rgb_path": "cam2/rgb_00008.jpg",
+          "depth_path": "cam2/depth_00008.png",
+          "ids": [
+            5,
+            2
+          ]
+        },
+        "3": {
+          "saved": true,
+          "ts_ms": 1786622340555.9292,
+          "rgb_path": "cam3/rgb_00008.jpg",
+          "depth_path": "cam3/depth_00008.png",
+          "ids": [
+            2,
+            5,
+            0,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "event_id": 9,
+      "cams": {
+        "0": {
+          "saved": true,
+          "ts_ms": 1786622385070.1052,
+          "rgb_path": "cam0/rgb_00009.jpg",
+          "depth_path": "cam0/depth_00009.png",
+          "ids": [
+            4,
+            3
+          ]
+        },
+        "1": {
+          "saved": true,
+          "ts_ms": 1786622385174.299,
+          "rgb_path": "cam1/rgb_00009.jpg",
+          "depth_path": "cam1/depth_00009.png",
+          "ids": [
+            3,
+            2
+          ]
+        },
+        "2": {
+          "saved": true,
+          "ts_ms": 1786622385269.9553,
+          "rgb_path": "cam2/rgb_00009.jpg",
+          "depth_path": "cam2/depth_00009.png",
+          "ids": [
+            5,
+            2,
+            0
+          ]
+        },
+        "3": {
+          "saved": true,
+          "ts_ms": 1786622385489.713,
+          "rgb_path": "cam3/rgb_00009.jpg",
+          "depth_path": "cam3/depth_00009.png",
+          "ids": [
+            3,
+            0,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "event_id": 10,
+      "cams": {
+        "0": {
+          "saved": true,
+          "ts_ms": 1786622513936.8174,
+          "rgb_path": "cam0/rgb_00010.jpg",
+          "depth_path": "cam0/depth_00010.png",
+          "ids": [
+            5,
+            0,
+            1
+          ]
+        },
+        "1": {
+          "saved": true,
+          "ts_ms": 1786622514042.3997,
+          "rgb_path": "cam1/rgb_00010.jpg",
+          "depth_path": "cam1/depth_00010.png",
+          "ids": [
+            4,
+            3
+          ]
+        },
+        "2": {
+          "saved": true,
+          "ts_ms": 1786622514306.3171,
+          "rgb_path": "cam2/rgb_00010.jpg",
+          "depth_path": "cam2/depth_00010.png",
+          "ids": [
+            2,
+            3
+          ]
+        },
+        "3": {
+          "saved": true,
+          "ts_ms": 1786622514270.599,
+          "rgb_path": "cam3/rgb_00010.jpg",
+          "depth_path": "cam3/depth_00010.png",
+          "ids": [
+            3,
+            1,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "event_id": 11,
+      "cams": {
+        "0": {
+          "saved": true,
+          "ts_ms": 1786622566089.2568,
+          "rgb_path": "cam0/rgb_00011.jpg",
+          "depth_path": "cam0/depth_00011.png",
+          "ids": [
+            4,
+            5,
+            0
+          ]
+        },
+        "1": {
+          "saved": true,
+          "ts_ms": 1786622566363.17,
+          "rgb_path": "cam1/rgb_00011.jpg",
+          "depth_path": "cam1/depth_00011.png",
+          "ids": [
+            3,
+            2,
+            1,
+            0
+          ]
+        },
+        "2": {
+          "saved": true,
+          "ts_ms": 1786622566459.0598,
+          "rgb_path": "cam2/rgb_00011.jpg",
+          "depth_path": "cam2/depth_00011.png",
+          "ids": [
+            5,
+            2
+          ]
+        },
+        "3": {
+          "saved": true,
+          "ts_ms": 1786622566551.7952,
+          "rgb_path": "cam3/rgb_00011.jpg",
+          "depth_path": "cam3/depth_00011.png",
+          "ids": [
+            2,
+            0,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "event_id": 12,
+      "cams": {
+        "0": {
+          "saved": true,
+          "ts_ms": 1786622609325.3677,
+          "rgb_path": "cam0/rgb_00012.jpg",
+          "depth_path": "cam0/depth_00012.png",
+          "ids": [
+            4,
+            3
+          ]
+        },
+        "1": {
+          "saved": true,
+          "ts_ms": 1786622609431.1062,
+          "rgb_path": "cam1/rgb_00012.jpg",
+          "depth_path": "cam1/depth_00012.png",
+          "ids": [
+            2,
+            1,
+            0
+          ]
+        },
+        "2": {
+          "saved": true,
+          "ts_ms": 1786622609527.058,
+          "rgb_path": "cam2/rgb_00012.jpg",
+          "depth_path": "cam2/depth_00012.png",
+          "ids": [
+            5,
+            4
+          ]
+        },
+        "3": {
+          "saved": true,
+          "ts_ms": 1786622609646.4402,
+          "rgb_path": "cam3/rgb_00012.jpg",
+          "depth_path": "cam3/depth_00012.png",
+          "ids": [
+            5,
+            0,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "event_id": 13,
+      "cams": {
+        "0": {
+          "saved": true,
+          "ts_ms": 1786622624130.0432,
+          "rgb_path": "cam0/rgb_00013.jpg",
+          "depth_path": "cam0/depth_00013.png",
+          "ids": [
+            4,
+            5,
+            0
+          ]
+        },
+        "1": {
+          "saved": true,
+          "ts_ms": 1786622624235.6904,
+          "rgb_path": "cam1/rgb_00013.jpg",
+          "depth_path": "cam1/depth_00013.png",
+          "ids": [
+            3,
+            2
+          ]
+        },
+        "2": {
+          "saved": true,
+          "ts_ms": 1786622624331.7717,
+          "rgb_path": "cam2/rgb_00013.jpg",
+          "depth_path": "cam2/depth_00013.png",
+          "ids": [
+            5,
+            2
+          ]
+        },
+        "3": {
+          "saved": true,
+          "ts_ms": 1786622624345.3047,
+          "rgb_path": "cam3/rgb_00013.jpg",
+          "depth_path": "cam3/depth_00013.png",
+          "ids": [
+            2,
+            0,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "event_id": 14,
+      "cams": {
+        "0": {
+          "saved": true,
+          "ts_ms": 1786622672076.5793,
+          "rgb_path": "cam0/rgb_00014.jpg",
+          "depth_path": "cam0/depth_00014.png",
+          "ids": [
+            2,
+            5
+          ]
+        },
+        "1": {
+          "saved": true,
+          "ts_ms": 1786622672182.4285,
+          "rgb_path": "cam1/rgb_00014.jpg",
+          "depth_path": "cam1/depth_00014.png",
+          "ids": [
+            4,
+            5
+          ]
+        },
+        "2": {
+          "saved": true,
+          "ts_ms": 1786622672278.6057,
+          "rgb_path": "cam2/rgb_00014.jpg",
+          "depth_path": "cam2/depth_00014.png",
+          "ids": [
+            3,
+            2,
+            1,
+            0
+          ]
+        },
+        "3": {
+          "saved": true,
+          "ts_ms": 1786622672283.8108,
+          "rgb_path": "cam3/rgb_00014.jpg",
+          "depth_path": "cam3/depth_00014.png",
+          "ids": [
+            1,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "event_id": 15,
+      "cams": {
+        "0": {
+          "saved": true,
+          "ts_ms": 1786622685535.3965,
+          "rgb_path": "cam0/rgb_00015.jpg",
+          "depth_path": "cam0/depth_00015.png",
+          "ids": [
+            2,
+            3,
+            1
+          ]
+        },
+        "1": {
+          "saved": true,
+          "ts_ms": 1786622685641.2024,
+          "rgb_path": "cam1/rgb_00015.jpg",
+          "depth_path": "cam1/depth_00015.png",
+          "ids": [
+            5,
+            2
+          ]
+        },
+        "2": {
+          "saved": true,
+          "ts_ms": 1786622685737.406,
+          "rgb_path": "cam2/rgb_00015.jpg",
+          "depth_path": "cam2/depth_00015.png",
+          "ids": [
+            4,
+            1
+          ]
+        },
+        "3": {
+          "saved": true,
+          "ts_ms": 1786622685813.4468,
+          "rgb_path": "cam3/rgb_00015.jpg",
+          "depth_path": "cam3/depth_00015.png",
+          "ids": [
+            5,
+            0,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "event_id": 16,
+      "cams": {
+        "0": {
+          "saved": true,
+          "ts_ms": 1786622700339.8809,
+          "rgb_path": "cam0/rgb_00016.jpg",
+          "depth_path": "cam0/depth_00016.png",
+          "ids": [
+            2,
+            5
+          ]
+        },
+        "1": {
+          "saved": true,
+          "ts_ms": 1786622700445.788,
+          "rgb_path": "cam1/rgb_00016.jpg",
+          "depth_path": "cam1/depth_00016.png",
+          "ids": [
+            4,
+            5
+          ]
+        },
+        "2": {
+          "saved": true,
+          "ts_ms": 1786622700542.1592,
+          "rgb_path": "cam2/rgb_00016.jpg",
+          "depth_path": "cam2/depth_00016.png",
+          "ids": [
+            1,
+            0
+          ]
+        },
+        "3": {
+          "saved": true,
+          "ts_ms": 1786622700679.4976,
+          "rgb_path": "cam3/rgb_00016.jpg",
+          "depth_path": "cam3/depth_00016.png",
+          "ids": [
+            4,
+            1,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "event_id": 17,
+      "cams": {
+        "0": {
+          "saved": true,
+          "ts_ms": 1786622719013.891,
+          "rgb_path": "cam0/rgb_00017.jpg",
+          "depth_path": "cam0/depth_00017.png",
+          "ids": [
+            2,
+            1,
+            0
+          ]
+        },
+        "1": {
+          "saved": true,
+          "ts_ms": 1786622718951.5183,
+          "rgb_path": "cam1/rgb_00017.jpg",
+          "depth_path": "cam1/depth_00017.png",
+          "ids": [
+            5,
+            4
+          ]
+        },
+        "2": {
+          "saved": true,
+          "ts_ms": 1786622719047.9104,
+          "rgb_path": "cam2/rgb_00017.jpg",
+          "depth_path": "cam2/depth_00017.png",
+          "ids": [
+            4,
+            3
+          ]
+        },
+        "3": {
+          "saved": true,
+          "ts_ms": 1786622719220.0586,
+          "rgb_path": "cam3/rgb_00017.jpg",
+          "depth_path": "cam3/depth_00017.png",
+          "ids": [
+            4,
+            0,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "event_id": 18,
+      "cams": {
+        "0": {
+          "saved": true,
+          "ts_ms": 1786622742230.5981,
+          "rgb_path": "cam0/rgb_00018.jpg",
+          "depth_path": "cam0/depth_00018.png",
+          "ids": [
+            5,
+            0
+          ]
+        },
+        "1": {
+          "saved": true,
+          "ts_ms": 1786622742336.2444,
+          "rgb_path": "cam1/rgb_00018.jpg",
+          "depth_path": "cam1/depth_00018.png",
+          "ids": [
+            4,
+            3
+          ]
+        },
+        "2": {
+          "saved": true,
+          "ts_ms": 1786622742432.5583,
+          "rgb_path": "cam2/rgb_00018.jpg",
+          "depth_path": "cam2/depth_00018.png",
+          "ids": [
+            2,
+            3,
+            1
+          ]
+        },
+        "3": {
+          "saved": true,
+          "ts_ms": 1786622742604.767,
+          "rgb_path": "cam3/rgb_00018.jpg",
+          "depth_path": "cam3/depth_00018.png",
+          "ids": [
+            3,
+            1,
+            0
+          ]
+        }
+      }
+    }
+  ]
+}
