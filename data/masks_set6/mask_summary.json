@@ -1,0 +1,30 @@
+{
+  "capture_dir": "/home/sprout/Desktop/**jiwoo/rb-multiview-calib-sam3d-scale/data/capture_obj_set6",
+  "masks_dir": "/home/sprout/Desktop/**jiwoo/rb-multiview-calib-sam3d-scale/data/masks_set6",
+  "objects": [
+    "mug"
+  ],
+  "num_objects": 1,
+  "events": [
+    {
+      "cam_id": 0,
+      "object": "mug",
+      "result": "saved"
+    },
+    {
+      "cam_id": 1,
+      "object": "mug",
+      "result": "saved"
+    },
+    {
+      "cam_id": 2,
+      "object": "mug",
+      "result": "saved"
+    },
+    {
+      "cam_id": 3,
+      "object": "mug",
+      "result": "saved"
+    }
+  ]
+}

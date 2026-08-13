@@ -1,0 +1,30 @@
+{
+  "capture_dir": "/home/sprout/Desktop/**jiwoo/rb-multiview-calib-sam3d-scale/data/capture_obj_set3",
+  "masks_dir": "/home/sprout/Desktop/**jiwoo/rb-multiview-calib-sam3d-scale/data/masks_set3",
+  "objects": [
+    "banana"
+  ],
+  "num_objects": 1,
+  "events": [
+    {
+      "cam_id": 0,
+      "object": "banana",
+      "result": "saved"
+    },
+    {
+      "cam_id": 1,
+      "object": "banana",
+      "result": "saved"
+    },
+    {
+      "cam_id": 2,
+      "object": "banana",
+      "result": "saved"
+    },
+    {
+      "cam_id": 3,
+      "object": "banana",
+      "result": "saved"
+    }
+  ]
+}

@@ -17,10 +17,91 @@ python Calib_Step3_calibrate_multi_cam_cube.py \
   --root_folder ./data/static_cams_session_03 --intrinsics_dir ./intrinsics \
   --ref_cam_idx 0 --min_markers 1 --save_overlay
 
-# 4) 물체 촬영
+---------------------------------------------------------------------------------------------------------------------------------------------
+mm 단위 검증 (Calib_verify_calibration_accuracy.py)
+항목	값	스크립트 기준
+Cross-view 삼각측량 잔차	mean 0.177mm / RMS 0.248 / p90 0.344	<< 1mm → 최상위 등급
+마커 변 길이 복원 오차	mean 0.269mm (상대 0.75%)	<< 0.5mm → 최상위 등급
+마커 대각 복원 오차	mean 0.349mm	—
+스크립트 자체 판정 기준이 "3D 잔차 << 1mm + edge 오차 << 0.5mm → mesh metric scale 신뢰 OK"인데, 양쪽 다 그 구간에 여유 있게 들어갑니다. 마커 실측 25/51mm 대비 0.27mm 오차니 스케일 자체가 잘 잡혔다는 뜻이고, 이게 크기 추정에서 제일 중요한 지표입니다.
+
+재투영 (bundle adjustment)
+전체 RMS 0.664px (초기 1.952 → BA로 개선), median 0.699 / p90 1.446 / max 3.58. 787점.
+
+cam0	cam1	cam2	cam3
+RMS	0.721px	0.747px	0.843px	1.257px
+median	0.585	0.594	0.638	0.995
+짚어둘 점 두 가지
+1. cam3(D435)만 확연히 나쁩니다 — RMS가 나머지의 1.5~1.7배. D415는 스테레오 베이스라인과 렌즈가 달라 원래 좀 더 나오긴 하지만, 그 차이 이상입니다. 못 쓸 수준은 아니고 mm 검증도 전체적으로 통과했으니 그냥 쓰셔도 되는데, --sam3d_cam과 FoundationPose --cam은 cam0/1/2 중에서 고르세요.
+
+2. 마커 관측 편중 — id0:15, id1:16, id2:14, id5:12는 괜찮은데 id3:7, id4:4로 적습니다. 큐브의 그 두 면이 카메라들에 잘 안 보이는 자세로만 찍혔다는 뜻입니다. 지금 수치가 좋으니 이번 캘리브는 그대로 쓰셔도 됩니다만, 3번 단계에서 session_04를 다시 찍을 때는 큐브를 좀 더 굴려서 여섯 면이 고르게 잡히게 하세요.
+
+참고로 frame 10만 삼각측량 잔차 0.432mm로 다른 프레임(0.07~0.23mm)보다 튑니다. 전체에 묻힐 수준이라 굳이 뺄 필요는 없지만, 재캘리브 시 --exclude_frames 10으로 제외해볼 수 있습니다.
+
+session_02(3대)와 수치 비교를 해보려 했는데 그 세션엔 meta.json이 없어서(캘리브 결과만 남고 촬영 메타가 없음) 검증 스크립트가 못 돕니다. 절대 수치만으로도 판단은 충분합니다.
+---------------------------------------------------------------------------------------------------------------------------------------
+
+
+#) 공통 (set마다 한번씩 터미널에 명령하기)
+
+cd /home/sprout/Desktop/**jiwoo/rb-multiview-calib-sam3d-scale
+CAM_PY=/home/sprout/anaconda3/envs/multicam_cube/bin/python3
+SAM2_PY=/home/sprout/anaconda3/envs/sam2env/bin/python3
+TF=./data/static_cams_session_03/calib_out_cube/transforms/T_C0_Ci_all.json
+SET=set7
+OBJS=peg,hole         # 이 세트에 올릴 물체 이름들 (쉼표, 공백 없이)
+
+#) A. 촬영 — SPACE 한 번이면 저장 후 종료
 python Obj_Step1_capture_object.py \
-  --out_dir ./data/capture_obj_01 \
+  --out_dir ./data/capture_obj_$SET \
   --intrinsics_dir ./intrinsics \
   --transforms_json $TF \
   --width 1280 --height 720 --fps 6 \
   --depth_burst_n 10 --show --preview_scale 0.4
+
+#) B. 마스킹 — cam0~cam3 × 물체수 만큼 슬롯을 돕니다
+** --objects에 의미 있는 이름 -> masks_04/<이름>/cam{i}_mask.png
+** UI는 (cam, obj) 슬롯을 순서대로 도는데, 이번엔 cam0~cam3까지 4번 돕니다:
+** 좌클릭 = 양성, 우클릭 = 음성(경계 정제), b = 클릭 취소, r = 리셋
+** SPACE = 저장 후 다음, n = 이 뷰에서 물체가 안 보이면 스킵
+
+PYTHONWARNINGS=ignore $SAM2_PY Obj_Step2_mask_sam2.py \
+  --capture_dir ./data/capture_obj_$SET \
+  --masks_dir   ./data/masks_$SET \
+  --sam_checkpoint ~/sam2_checkpoints/sam2_hiera_large.pt \
+  --sam_config configs/sam2/sam2_hiera_l.yaml \
+  --objects $OBJS --device cpu
+
+#) C. 크기 추정 — SAM3D 환경에서
+python Obj_Step3_sam3d_scale.py \
+  --data_dir ./data/capture_obj_$SET --mask_dir ./data/masks_$SET \
+  --out_dir  ./data/outputs_$SET \
+  --depth_scale 0.001 --mask_erode_px 3 --keep_largest_cc \
+  --run_sam3d --sam3d_cam cam1 --spconv_algo native \
+  --estimate_size --size_save_overlay
+세트 안의 물체 전부에 대해 data/outputs_$SET/<obj>/<obj>_sam3d_scaled.glb가 생성됩니다.
+
+#) D. 세트 넘어가기 전 IoU 확인 — 여기서 거르지 않으면 뒤에서 원인을 못 찾습니다
+python3 -c "
+import json,glob,sys
+for f in sorted(glob.glob(f'data/outputs_$SET/*/*_size.json')):
+    d=json.load(open(f)); iou=d.get('mean_iou')
+    print(('OK ' if (iou or 0)>=0.85 else '>>> '), f.split('/')[-1], 'IoU=',iou, 'dims=',d.get('dims_m'))"
+0.85 미만이면 --sam3d_cam을 그 물체가 더 크고 안 가리게 보이는 카메라(cam0/cam1/cam2)로 바꿔 C만 다시 돌리세요. cam3(D435)는 BA RMS 1.26px로 나머지보다 나쁘니 마지막 후보로.
+
+-----------------------------------------------------------------------------------------
+포즈 추정 (FoundationPose, 도커 안)
+크기 추정이 다 끝난 뒤 물체별로 1회씩. 컨테이너 안 경로 기준입니다.
+
+SET=set1; OBJ=bottle
+python3 /workspace/my_repo/Obj_Step5_foundationpose_register.py \
+  --scene_dir /workspace/my_repo/data/capture_obj_$SET \
+  --cam cam0 \
+  --mesh /workspace/my_repo/data/outputs_$SET/$OBJ/${OBJ}_sam3d_scaled.glb \
+  --mask /workspace/my_repo/data/masks_$SET/$OBJ/cam0_mask.png \
+  --out_dir /workspace/my_repo/data/outputs_$SET/$OBJ/fp_pose \
+  --iter 5
+--cam과 --mask의 카메라는 반드시 같아야 합니다. cam0에서 그 물체를 n으로 스킵했다면 둘 다 cam1 등으로 바꾸세요.
+
+짚어둘 것 두 가지
+1. base 좌표계 포즈는 못 나옵니다. --t_r_c0에 줄 eye-to-hand 결과가 현재 셋업엔 없습니다 — data(2)/handeye_session_01/T_R_C1.json이 있지만 640×480 시절, 카메라 배치가 완전히 다른 캘리브라 쓰면 안 됩니다. 그래서 위 명령은 T_C0_obj.json(cam0 기준)만 저장하고 T_R_obj.json은 안 만듭니다. 로봇 base 기준 포즈가 필요하면 EE에 큐브 장착 → Calib_Step3ee/Calib_Step4ee로 eye-to-hand를 따로 풀어야 합니다. (S

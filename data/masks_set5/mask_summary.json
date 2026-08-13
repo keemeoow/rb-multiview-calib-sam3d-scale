@@ -1,0 +1,30 @@
+{
+  "capture_dir": "/home/sprout/Desktop/**jiwoo/rb-multiview-calib-sam3d-scale/data/capture_obj_set5",
+  "masks_dir": "/home/sprout/Desktop/**jiwoo/rb-multiview-calib-sam3d-scale/data/masks_set5",
+  "objects": [
+    "mustard_bottle"
+  ],
+  "num_objects": 1,
+  "events": [
+    {
+      "cam_id": 0,
+      "object": "mustard_bottle",
+      "result": "saved"
+    },
+    {
+      "cam_id": 1,
+      "object": "mustard_bottle",
+      "result": "saved"
+    },
+    {
+      "cam_id": 2,
+      "object": "mustard_bottle",
+      "result": "saved"
+    },
+    {
+      "cam_id": 3,
+      "object": "mustard_bottle",
+      "result": "saved"
+    }
+  ]
+}

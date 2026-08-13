@@ -1,0 +1,51 @@
+{
+  "capture_dir": "/home/sprout/Desktop/**jiwoo/rb-multiview-calib-sam3d-scale/data/capture_obj_set7",
+  "masks_dir": "/home/sprout/Desktop/**jiwoo/rb-multiview-calib-sam3d-scale/data/masks_set7",
+  "objects": [
+    "peg",
+    "hole"
+  ],
+  "num_objects": 2,
+  "events": [
+    {
+      "cam_id": 0,
+      "object": "peg",
+      "result": "saved"
+    },
+    {
+      "cam_id": 0,
+      "object": "hole",
+      "result": "saved"
+    },
+    {
+      "cam_id": 1,
+      "object": "peg",
+      "result": "saved"
+    },
+    {
+      "cam_id": 1,
+      "object": "hole",
+      "result": "saved"
+    },
+    {
+      "cam_id": 2,
+      "object": "peg",
+      "result": "saved"
+    },
+    {
+      "cam_id": 2,
+      "object": "hole",
+      "result": "saved"
+    },
+    {
+      "cam_id": 3,
+      "object": "peg",
+      "result": "saved"
+    },
+    {
+      "cam_id": 3,
+      "object": "hole",
+      "result": "saved"
+    }
+  ]
+}
